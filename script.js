@@ -10,16 +10,22 @@ const AudioEcho = {
             utterance.rate = 1.0;
             
             if (callback) {
-                utterance.onend = callback; // Führt Code aus, wenn das Sprechen beendet ist
+                utterance.onend = callback;
             }
             
             window.speechSynthesis.speak(utterance);
         }
-        // Fallback für Screenreader über ARIA-Live-Kanal
         const announcer = document.getElementById('screenreader-live-announcer');
         if (announcer) {
             announcer.textContent = text;
         }
+    }
+};
+
+// HTML-Kompatibilitäts-Fallback (Falls im HTML fälschlicherweise "VoiceAssistant" aufgerufen wird)
+window.VoiceAssistant = {
+    speak(text) {
+        AudioEcho.speak(text);
     }
 };
 
@@ -29,15 +35,15 @@ const VoiceControl = {
     isListening: false,
 
     init() {
-        const SpeedRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeedRecognition) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
             console.log("Spracherkennung wird von diesem Browser nicht unterstützt.");
             return;
         }
 
-        this.recognition = new SpeedRecognition();
+        this.recognition = new SpeechRecognition();
         this.recognition.lang = 'de-DE';
-        this.recognition.continuous = false; // Stoppt automatisch nach einem Befehl
+        this.recognition.continuous = false;
         this.recognition.interimResults = false;
 
         this.recognition.onstart = () => {
@@ -62,7 +68,6 @@ const VoiceControl = {
             this.updateTriggerButton(false);
         };
 
-        // Globaler Hotkey: Leertaste drücken, um zuzuhören (außer in Eingabefeldern)
         window.addEventListener('keydown', (e) => {
             if (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
                 e.preventDefault();
@@ -73,7 +78,6 @@ const VoiceControl = {
 
     startListening() {
         if (this.isListening) return;
-        // Erst die Sprachausgabe stoppen, damit sich das System nicht selbst hört
         if ('speechSynthesis' in window) window.speechSynthesis.cancel();
         
         try {
@@ -94,38 +98,127 @@ const VoiceControl = {
     processCommand(command) {
         console.log("Erkannter Befehl:", command);
 
+        // --- NAVIGATION & INFOS ---
         if (command.includes("scan") || command.includes("umgebung") || command.includes("zusammenfassung")) {
             readEnvironmentSummary();
         } 
-        else if (command.includes("anleitung") || command.includes("handbuch")) {
-            AudioEcho.speak("Öffne Handbuch.", () => { window.location.href = "anleitung.html"; });
+        else if (command.includes("anleitung") || command.includes("handbuch") || command.includes("hilfe")) {
+            AudioEcho.speak("Öffne Handbuch und Hilfe.", () => { window.location.href = "anleitung.html"; });
         } 
-        else if (command.includes("datenschutz") || command.includes("impressum")) {
-            AudioEcho.speak("Öffne Datenschutz.", () => { window.location.href = "datenschutz.html"; });
+        else if (command.includes("datenschutz") || command.includes("impressum") || command.includes("rechtliche")) {
+            AudioEcho.speak("Öffne Rechtliche Hinweise.", () => { window.location.href = "datenschutz.html"; });
         } 
-        else if (command.includes("menü") || command.includes("navigation öffnen")) {
+        else if (command.includes("admin") || command.includes("konfiguration")) {
+            AudioEcho.speak("Wechsle in den Admin Bereich.", () => { window.location.href = "admin.html"; });
+        }
+        else if (command.includes("menü") || command.includes("navigation")) {
             toggleMenu();
             AudioEcho.speak("Hauptmenü umschalten.");
         }
-        else if (command.includes("filter zurücksetzen") || command.includes("alle anzeigen")) {
+
+        // --- FILTER-STEUERUNG PER STIMME ---
+        else if (command.includes("filter aus") || command.includes("zurücksetzen") || command.includes("alle anzeigen")) {
             resetAllFilters();
             AudioEcho.speak("Alle Filter wurden zurückgesetzt.");
+        }
+        else if (command.includes("neueste") || command.includes("neuheiten")) {
+            activeSelectedFilters = ["status_neu"];
+            loadFromCommunity();
+            AudioEcho.speak("Filter auf neueste Meldungen gesetzt.");
+        }
+        else if (command.includes("bestätigt") || command.includes("geprüft") || command.includes("🌟")) {
+            activeSelectedFilters = ["status_bestaetigt"];
+            loadFromCommunity();
+            AudioEcho.speak("Filter auf verifizierte Einträge gesetzt.");
         }
         else if (command.includes("baustelle")) {
             activeSelectedFilters = ["Baustelle ohne Bodenführung"];
             loadFromCommunity();
-            AudioEcho.speak("Filter auf Baustellen gesetzt.");
+            AudioEcho.speak("Filter auf Baustellen ohne Tastleiste gesetzt.");
         }
-        else if (command.includes("hilfe") || command.includes("befehle")) {
-            AudioEcho.speak("Mögliche Sprachbefehle sind: Scan, Anleitung, Datenschutz, Menü, Filter zurücksetzen oder Baustelle.");
+        else if (command.includes("kopfhöhe") || command.includes("hindernis auf kopfhöhe")) {
+            activeSelectedFilters = ["Hindernis auf Kopfhöhe"];
+            loadFromCommunity();
+            AudioEcho.speak("Filter auf Hindernisse in Kopfhöhe gesetzt.");
+        }
+        else if (command.includes("blockade") || command.includes("querparker") || command.includes("scooter")) {
+            activeSelectedFilters = ["Querparker / Blockade"];
+            loadFromCommunity();
+            AudioEcho.speak("Filter auf blockierte Leitlinien gesetzt.");
+        }
+        else if (command.includes("leitsystem fehlt") || command.includes("bodenindikator")) {
+            activeSelectedFilters = ["Fehlendes Leitsystem"];
+            loadFromCommunity();
+            AudioEcho.speak("Filter auf fehlende Bodenindikatoren gesetzt.");
+        }
+        else if (command.includes("ampel") || command.includes("akustik defekt")) {
+            activeSelectedFilters = ["Akustik-Ampel defekt"];
+            loadFromCommunity();
+            AudioEcho.speak("Filter auf defekte Ampel-Akustik gesetzt.");
+        }
+
+        // --- AKTIONEN: EINCHECKEN PER STIMME ---
+        else if (command.includes("einchecken") || command.includes("verifizieren") || command.includes("hier vor ort")) {
+            if (reportsData.length > 0) {
+                AudioEcho.speak("Prüfe den nächsten Punkt für den Vor-Ort-Check-In...");
+                verifyByLocation(reportsData[0].id); // Checkt automatisch den am nächsten liegenden/ersten Punkt in der Liste ein
+            } else {
+                AudioEcho.speak("Keine Punkte in deiner Umgebung zum Einchecken gefunden.");
+            }
+        }
+
+        // --- HINDERNISSE DIREKT SETZEN PER STIMME ---
+        else if (command.includes("melden") || command.includes("eintragen") || command.includes("setze") || command.includes("defekt") || command.includes("fehlt")) {
+            let erkannterTyp = null;
+            
+            if (command.includes("baustelle")) {
+                erkannterTyp = "Baustelle ohne Bodenführung";
+            } else if (command.includes("hindernis") || command.includes("ast") || command.includes("schild")) {
+                erkannterTyp = "Hindernis auf Kopfhöhe";
+            } else if (command.includes("blockiert") || command.includes("roller") || command.includes("scooter") || command.includes("querparker")) {
+                erkannterTyp = "Querparker / Blockade";
+            } else if (command.includes("leitsystem") || command.includes("noppen") || command.includes("rillen")) {
+                erkannterTyp = "Fehlendes Leitsystem";
+            } else if (command.includes("ampel")) {
+                erkannterTyp = "Akustik-Ampel defekt";
+            } else if (command.includes("umsteigepunkt") || command.includes("bahnhof")) {
+                erkannterTyp = "Taktiler Umsteigepunkt";
+            } else if (command.includes("fahrplan")) {
+                erkannterTyp = "Sprechender Fahrplan";
+            }
+
+            if (erkannterTyp) {
+                navigator.geolocation.getCurrentPosition(async (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    
+                    const neuerPunkt = {
+                        lat: lat, lng: lng,
+                        typ: [erkannterTyp], 
+                        kommentar: "Automatisierte Sprachmeldung.", 
+                        id: "id_" + Date.now(), 
+                        votes: 0, status: "new", createdAt: Date.now() 
+                    };
+
+                    reportsData.push(neuerPunkt);
+                    await saveSingleMarkerToCommunity(neuerPunkt);
+                    await loadFromCommunity();
+                    
+                    AudioEcho.speak(`Erfolgreich gemeldet! An deiner GPS-Position wurde folgendes eingetragen: ${erkannterTyp}.`);
+                }, () => {
+                    AudioEcho.speak("Fehler: Deine Position konnte nicht ermittelt werden.");
+                }, { enableHighAccuracy: true });
+            } else {
+                AudioEcho.speak("Meldung nicht verstanden. Bitte nenne einen Typ wie Baustelle, Blockade oder Ampel defekt.");
+            }
         }
         else {
-            AudioEcho.speak(`Befehl ${command} nicht erkannt. Drücke die Leertaste und sage Hilfe für verfügbare Kommandos.`);
+            AudioEcho.speak(`Befehl nicht erkannt. Sage Hilfe für verfügbare Kommandos.`);
         }
     }
 };
 
-// --- ZENTRALE MODAL ENGINE (BARRIEREFREI & HIGH-CONTRAST) ---
+// --- ZENTRALE MODAL ENGINE ---
 const CustomUI = {
     async confirm(titel, text, jaText = "Ja", neinText = "Abbrechen") {
         return new Promise((resolve) => {
@@ -207,7 +300,6 @@ function showVerificationStatus(erfolgreich, nachricht) {
     closeBtn.onclick = () => { document.body.removeChild(overlay); };
 }
 
-// --- ADMIN LOGIN ---
 if (isAdminPage) {
     setTimeout(async () => {
         const login = await CustomUI.prompt("🔒 StepFree Echo Admin", "Bitte Mod-Zertifikatspasswort eingeben:", "Passwort...", "password");
@@ -253,7 +345,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - Math.sqrt(a)));
     return R * c;
 }
 
@@ -282,9 +374,8 @@ async function initApp() {
     map.on('zoomend', loadFromCommunity);
     
     await loadFromCommunity();
-    VoiceControl.init(); // Spracherkennung starten
+    VoiceControl.init();
 
-    // Erstellt einen schwebenden Sprachsteuerungs-Button, falls nicht im HTML vorhanden
     if (!document.getElementById('voice-trigger-btn')) {
         const voiceBtn = document.createElement('button');
         voiceBtn.id = "voice-trigger-btn";
@@ -317,6 +408,7 @@ function setupLocationTracking() {
     });
 }
 
+// --- SYSTEMREPARATUR: FIREBASE NODE /REPORTS/ FIX ---
 async function loadFromCommunity() {
     if (!map) return;
     updateStatus("Synchronisiere Barrieredaten...", "#F1C40F");
@@ -324,7 +416,7 @@ async function loadFromCommunity() {
         const bounds = map.getBounds();
         const southWest = bounds.getSouthWest();
         const northEast = bounds.getNorthEast();
-        const url = `${DATA_URL_BASE}.json?orderBy="lat"&startAt=${southWest.lat}&endAt=${northEast.lat}`;
+        const url = `${DATA_URL_BASE}reports.json?orderBy="lat"&startAt=${southWest.lat}&endAt=${northEast.lat}`;
 
         const response = await fetch(url);
         if (response.ok) {
@@ -353,20 +445,13 @@ async function loadFromCommunity() {
 }
 
 function buildAccessibleList() {
-    const listSection = document.getElementById('blind-navigation-section');
-    if (!listSection) return;
+    const listContainer = document.getElementById('blind-navigation-list');
+    if (!listContainer) return;
 
-    listSection.innerHTML = `
-        <h2 id="list-heading" tabindex="0">🔊 Akustische Umgebungs-Echozentrale</h2>
-        <div class="audio-controls">
-            <button onclick="readEnvironmentSummary()" aria-label="Umgebung akustisch zusammenfassen">🗣️ Umgebungs-Check scannen</button>
-        </div>
-        <div id="accessible-items-container" role="region" aria-live="polite" aria-labelledby="list-heading"></div>
-    `;
+    listContainer.innerHTML = "";
 
-    const container = document.getElementById('accessible-items-container');
     if (reportsData.length === 0) {
-        container.innerHTML = `<p style="font-size:1.2rem; color:#AAA; font-style:italic;">Keine gemeldeten Infrastrukturen oder Hindernisse in diesem Radius.</p>`;
+        listContainer.innerHTML = `<p style="font-size:1.2rem; color:#AAA; font-style:italic; padding: 15px;">Keine gemeldeten Infrastrukturen oder Hindernisse in diesem Radius.</p>`;
         return;
     }
 
@@ -374,48 +459,54 @@ function buildAccessibleList() {
         let typliste = Array.isArray(r.typ) ? r.typ : [r.typ];
         
         if (activeSelectedFilters.length > 0) {
-            const passtZuFiltern = activeSelectedFilters.some(f => typliste.some(t => t.includes(f) || f.includes(t)));
+            const passtZuFiltern = activeSelectedFilters.some(f => {
+                if (f === "status_neu" && r.status === "new") return true;
+                if (f === "status_bestaetigt" && r.status === "confirmed") return true;
+                return typliste.some(t => t.includes(f) || f.includes(t));
+            });
             if (!passtZuFiltern) return;
         }
 
         const card = document.createElement('div');
         card.className = "accessible-card";
         card.tabIndex = 0;
+        card.style.cssText = "background:#111; border:2px solid #333; color:#FFF; padding:15px; margin:10px; border-radius:8px;";
         
         const verifiziertText = r.status === "confirmed" ? " [Offiziell Bestätigt]" : "";
         const details = r.kommentar ? `Zusatzinfo: ${r.kommentar}` : "Keine Zusatzinfos.";
 
         card.setAttribute('aria-label', `Eintrag: ${typliste.join(', ')}.${verifiziertText}. ${details}`);
 
+        // REPARIERT: Google Maps URL Template Syntax
         const googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}&travelmode=walking`;
 
         card.innerHTML = `
-            <h4>${typliste.join(' & ')} ${r.status === 'confirmed' ? '🌟' : ''}</h4>
+            <h4 style="color:#00FF00; margin-top:0;">${typliste.join(' & ')} ${r.status === 'confirmed' ? '🌟' : ''}</h4>
             <p>${details}</p>
             <div style="font-size:1rem; color:#00FF00; margin-bottom:12px;">Vertrauens-Level: ${r.votes || 0}</div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button onclick="vote('${r.id}', 1)" aria-label="Bestätigen, dass diese Meldung stimmt">👍 Stimmt</button>
-                <button onclick="vote('${r.id}', -1)" aria-label="Melden, dass diese Meldung falsch ist">👎 Falsch</button>
-                <a href="${googleUrl}" target="_blank" role="button" style="display:inline-flex; align-items:center; background:#00FF00; color:#000; padding:10px 14px; border-radius:8px; text-decoration:none; font-weight:bold; min-height:44px;">🧭 Zielführung starten</a>
-                <button onclick="verifyByLocation('${r.id}')" style="background:#F1C40F; color:#000;">📍 Vor Ort Einchecken</button>
+                <button onclick="vote('${r.id}', 1)" aria-label="Bestätigen, dass diese Meldung stimmt" style="padding:10px; min-height:44px; cursor:pointer;">👍 Stimmt</button>
+                <button onclick="vote('${r.id}', -1)" aria-label="Melden, dass diese Meldung falsch ist" style="padding:10px; min-height:44px; cursor:pointer;">👎 Falsch</button>
+                <a href="${googleUrl}" target="_blank" role="button" style="display:inline-flex; align-items:center; background:#00FF00; color:#000; padding:10px 14px; border-radius:8px; text-decoration:none; font-weight:bold; min-height:44px;">🧭 Route starten</a>
+                <button onclick="verifyByLocation('${r.id}')" style="background:#F1C40F; color:#000; padding:10px; min-height:44px; cursor:pointer;">📍 Vor Ort Check-In</button>
             </div>
         `;
-        container.appendChild(card);
+        listContainer.appendChild(card);
     });
 }
 
 function readEnvironmentSummary() {
     if (reportsData.length === 0) {
-        AudioEcho.speak("Der Weg vor dir ist frei. Keine akustischen oder taktilen Meldungen im aktuellen Kartenausschnitt.");
+        AudioEcho.speak("Der Weg vor dir ist frei. Keine akustischen oder taktilen Meldungen im Kartenausschnitt.");
         return;
     }
     const anzahl = reportsData.length;
-    AudioEcho.speak(`Scan abgeschlossen. Ich habe ${anzahl} Einträge in deiner Umgebung lokalisiert. Nutze die Wischgesten oder Tabulator, um die Details anzuhören.`);
+    AudioEcho.speak(`Scan abgeschlossen. Ich habe ${anzahl} Einträge in deiner Umgebung lokalisiert. Nutze die Wischgesten oder die Leertaste für Sprachbefehle.`);
 }
 
 async function saveSingleMarkerToCommunity(neuerPunkt) {
     try {
-        await fetch(`${DATA_URL_BASE}/${neuerPunkt.id}.json`, {
+        await fetch(`${DATA_URL_BASE}reports/${neuerPunkt.id}.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(neuerPunkt)
@@ -425,7 +516,7 @@ async function saveSingleMarkerToCommunity(neuerPunkt) {
 
 async function updateSingleMarkerInCommunity(punkt) {
     try {
-        await fetch(`${DATA_URL_BASE}/${punkt.id}.json`, {
+        await fetch(`${DATA_URL_BASE}reports/${punkt.id}.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(punkt)
@@ -489,20 +580,21 @@ function verifyByLocation(id) {
         const dist = getDistance(pos.coords.latitude, pos.coords.longitude, report.lat, report.lng);
 
         if (dist <= 0.05) { 
-            finalizeVerificationProcess(report, "Standort verifiziert! Du bist direkt vor Ort eingeecheckt.");
+            finalizeVerificationProcess(report, "Standort verifiziert! Du bist direkt vor Ort eingecheckt.");
         } else {
-            showVerificationStatus(false, "Check-In verweigert. Du bist laut GPS-Koordinaten weiter als 50 Meter von diesem Infrastruktur-Punkt entfernt.");
+            showVerificationStatus(false, "Check-In verweigert. Du bist laut GPS weiter als 50 Meter entfernt.");
         }
     }, () => {
-        showVerificationStatus(false, "Ortung fehlgeschlagen. Bitte erlaube StepFree Echo den Zugriff auf deinen präzisen GPS-Standort.");
+        showVerificationStatus(false, "Ortung fehlgeschlagen. Bitte erlaube den GPS-Zugriff.");
     });
 }
 
 async function finalizeVerificationProcess(report, benutzerNachricht = null) {
     report.verifiedAt = new Date().toLocaleString('de-DE'); 
+    report.status = "confirmed"; // Setzt den Status auf Bestätigt
     await updateSingleMarkerInCommunity(report);
     await loadFromCommunity(); 
-    showVerificationStatus(true, benutzerNachricht || "Vielen Dank. Dein Vor-Ort-Sicherheitscheck wurde in das Netzwerk eingespeist.");
+    showVerificationStatus(true, benutzerNachricht || "Vielen Dank. Dein Vor-Ort-Sicherheitscheck wurde eingespeist.");
 }
 
 function openSelectionPopup(latlng) {
@@ -544,7 +636,7 @@ function finalizeMultiReport(event, lat, lng) {
     saveSingleMarkerToCommunity(neuerPunkt);
     loadFromCommunity();
     map.closePopup();
-    AudioEcho.speak("Meldung erfolgreich aufgezeichnet und an das Kontrollnetzwerk übertragen.");
+    AudioEcho.speak("Meldung erfolgreich aufgezeichnet.");
 }
 
 async function vote(id, change) {
@@ -553,7 +645,7 @@ async function vote(id, change) {
     
     let myVotes = JSON.parse(localStorage.getItem('userVotes') || "{}");
     if (myVotes[id]) {
-        await CustomUI.confirm("Aktion blockiert", "Deine Stimme wurde für diesen Datensatz bereits registriert.", "Verstanden", "");
+        await CustomUI.confirm("Aktion blockiert", "Deine Stimme wurde bereits registriert.", "Verstanden", "");
         return;
     }
     
