@@ -1,420 +1,123 @@
-/* ==========================================================================
-   1. BASIS LAYOUT & APP-STRUKTUR (BARRIEREFREI OPTIMIERT)
-   ========================================================================== */
-body, html {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #000000; /* Tiefschwarz für maximalen Kontrast */
-    color: #FFFFFF;            /* Reinweiß für beste Lesbarkeit */
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-/* Erlaubt normales Scrollen auf Inhaltsseiten und dem Listen-Interface */
+/* Kontraststarkes & Barrierefreies Layout */
 body {
-    overflow-y: auto !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    background-color: #f9f9f9;
+    color: #111111;
+    margin: 0;
+    padding: 20px;
 }
 
-/* Skip-Link für blinde Tastatur- und Braille-Nutzer (wird bei Focus sichtbar) */
-.skip-link {
-    position: absolute;
-    top: -100px;
-    left: 0;
-    background: #e74c3c;
-    color: #ffffff;
+header, main, section {
+    max-width: 650px;
+    margin: 0 auto 30px auto;
+}
+
+h1 { font-size: 2.2rem; color: #0044cc; }
+h2 { font-size: 1.6rem; color: #222; border-bottom: 2px solid #ccc; padding-bottom: 5px; }
+
+/* Unsichtbar im UI, aber für Screenreader voll hörbar */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* Große Formular-Klickflächen für motorisch oder sehbehinderte User */
+fieldset {
+    border: 2px solid #333;
+    border-radius: 8px;
     padding: 15px;
-    z-index: 10000;
-    font-weight: bold;
-    text-decoration: none;
-    border: 3px solid #ffffff;
+    background: #fff;
 }
-.skip-link:focus {
-    top: 0;
-}
+legend { font-weight: bold; padding: 0 10px; font-size: 1.1rem; }
 
-/* VISUELLE KARTE: Tritt für Blinde in den Hintergrund (per HTML aria-hidden) */
-#map {
-    position: relative;
-    width: 100%;
-    height: 40vh; /* Nimmt nur noch den oberen Teil ein, um Platz für die Liste zu machen */
-    z-index: 1;
-    border-bottom: 4px solid #333;
-}
-
-/* Falls wir im Admin-Modus sind oder die Karte Fullscreen sein soll */
-body:has(#admin-bar) #map {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-}
-
-/* ==========================================================================
-   2. AKUSTISCHE NAVIGATION & BLINDEN-ZENTRALE
-   ========================================================================== */
-#blind-navigation-section {
-    padding: 20px 16px;
-    background: #000000;
-    box-sizing: border-box;
-    position: relative;
-    z-index: 10;
-}
-
-#blind-navigation-section h2 {
-    color: #00FF00; /* Neon-Grün hat die höchste Lumineszenz auf Schwarz */
-    font-size: 1.8rem;
-    margin-top: 0;
-    margin-bottom: 20px;
-    outline: none;
-}
-
-/* RIESIGE TOUCH-ZIELE (Mindestens 60px Höhe für blinde/sehbehinderte Nutzer) */
-.audio-controls button {
-    width: 100%;
-    min-height: 64px;
-    background: #2193b0;
-    color: #ffffff;
-    font-size: 1.4rem;
-    font-weight: bold;
-    border: 3px solid #ffffff;
-    border-radius: 14px;
+label {
+    display: block;
+    margin: 15px 0;
+    font-size: 1.2rem;
     cursor: pointer;
-    margin-bottom: 25px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    box-shadow: 0 4px 12px rgba(33, 147, 176, 0.4);
 }
 
-/* EXTREM DEUTLICHER FOKUS-INDIKATOR (Für Tastatur, Gesten & Screenreader-Fokus) */
-.audio-controls button:focus, 
-.accessible-card:focus, 
-.filter-badge:focus,
-[tabindex="0"]:focus {
-    outline: 5px solid #00FF00 !important;
+input[type="checkbox"] {
+    transform: scale(1.5);
+    margin-right: 12px;
+    vertical-align: middle;
+}
+
+textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 1.1rem;
+    padding: 10px;
+    border: 2px solid #555;
+    border-radius: 6px;
+}
+
+button {
+    font-size: 1.1rem;
+    padding: 12px 20px;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+/* Tastatur-Fokus deutlich sichtbar machen */
+button:focus, div:focus, input:focus, textarea:focus {
+    outline: 4px solid #ffcc00 !important;
     outline-offset: 2px;
 }
 
-/* BARRIEREFREIE DOCK-KARTEN (Die fühl-/lesbare Liste) */
-.accessible-card {
-    background: #111111;
-    border: 3px solid #333333;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 16px;
-    transition: border-color 0.2s;
-}
-
-.accessible-card:focus {
-    background: #161616;
-}
-
-.accessible-card h4 {
-    margin: 0 0 12px 0;
-    font-size: 1.5rem;
-    color: #F1C40F; /* Signal-Gelb für perfekte Low-Vision-Erkennung */
-}
-
-.accessible-card p {
-    font-size: 1.2rem;
-    line-height: 1.6;
-    color: #e0e0e0;
-    margin: 0 0 16px 0;
-}
-
-/* Routen-Button in der Karte */
-.accessible-card button {
-    min-height: 48px;
-    min-width: 140px;
-    background: #ffffff;
-    color: #000000;
-    font-weight: bold;
-    font-size: 1.2rem;
-    border: 2px solid #ffffff;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-/* ==========================================================================
-   3. SCHWEBENDER HEADER & HORIZONTALER FILTER
-   ========================================================================= */
-#app-header {
-    position: sticky;
-    top: 0;            
-    background: #ffffff; 
-    border-bottom: 2px solid #d5dbdb;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-    z-index: 2000;
+.btn-submit {
+    background-color: #0066cc;
+    color: white;
     width: 100%;
+    margin-top: 15px;
 }
 
-body:has(#admin-bar) #app-header {
-    position: absolute;
-    top: 6px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 32px);
-    max-width: 340px;
-    border-radius: 22px;
-}
-
-.header-content {
+/* Filteranordnung */
+.filter-buttons {
     display: flex;
-    flex-direction: row; 
-    align-items: center;
-    width: 100%;
-    padding: 10px 14px;
-    box-sizing: border-box;
-}
-
-/* BARRIEREFREIE HORIZONTALE FILTER-BADGES */
-#filter-wrapper {
-    flex-grow: 1;
-    display: flex;
-    align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
-    overflow: hidden;
-    margin-left: 10px;
 }
+.btn-filter { background-color: #e0e0e0; color: #222; border: 1px solid #777;}
 
-.filter-badge {
-    background: #f0f3f4;
-    border: 2px solid #bcffff; /* Deutliche Konturen */
-    padding: 10px 16px;
-    border-radius: 24px;
-    font-size: 14px;
-    color: #2c3e50;
-    cursor: pointer;
-    font-weight: bold;
-    display: inline-block;
-    white-space: nowrap;
-    min-height: 44px; /* iOS & Android Touch-Standard */
-}
-
-.filter-badge.active {
-    background: #2c3e50 !important;
-    color: #ffffff !important;
-    border-color: #00FF00 !important;
-}
-
-/* ==========================================================================
-   4. SEITENMENÜ & OVERLAYS
-   ========================================================================== */
-#side-menu {
-    position: fixed;
-    top: 0;
-    left: -310px; 
-    width: 290px;
-    height: 100%;
-    background: #111111;
-    border-right: 3px solid #333;
-    z-index: 3000;
-    transition: all 0.3s ease;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    visibility: hidden; 
-    opacity: 0;
-}
-
-#side-menu.open {
-    left: 0;
-    visibility: visible; 
-    opacity: 1;
-}
-
-.menu-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+/* Gefahrenkarten */
+.obstacle-list { list-style: none; padding: 0; }
+.obstacle-card {
+    background: white;
+    border: 3px solid #333;
+    border-radius: 8px;
+    padding: 15px;
     margin-bottom: 20px;
 }
+.distance-badge { font-size: 1.2rem; color: #d32f2f; }
+.comment-text { font-style: italic; background: #eee; padding: 8px; border-radius: 4px; }
 
-.menu-header h3 {
-    margin: 0;
-    color: #00FF00;
-    font-size: 1.4rem;
-}
-
-.close-btn {
-    font-size: 40px;
-    cursor: pointer;
-    color: #ffffff;
-    min-width: 44px;
-    min-height: 44px;
+.obstacle-actions {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
 }
 
-.menu-item {
-    display: flex;
-    align-items: center;
-    padding: 16px 14px;
-    color: #ffffff !important; 
-    text-decoration: none !important; 
-    font-weight: bold;
-    font-size: 18px;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    background: #222222; 
-    border: 2px solid #444;
-    min-height: 44px;
+/* Barrierefreies Modal overlay */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 9999;
 }
-
-.menu-item:focus, .menu-item:hover {
-    background: #00FF00;
-    color: #000000 !important;
-    border-color: #ffffff;
+.modal-box {
+    background: white; padding: 25px; border-radius: 10px; max-width: 90%; width: 400px; text-align: center;
+    border: 4px solid #ffcc00;
 }
-
-#menu-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0,0,0,0.7);
-    z-index: 2999;
-    display: none; 
-}
-
-#menu-overlay.show {
-    display: block; 
-}
-
-/* ==========================================================================
-   5. SPLASH SCREEN & STATUS-BALKEN (DIE PILLE)
-   ========================================================================== */
-#splash-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: #000000;
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    transition: opacity 0.5s ease, visibility 0.5s;
-}
-
-.logo-text {
-    font-size: 3.5rem;
-    font-weight: 900;
-    color: #00FF00;
-    margin-bottom: 40px;
-    letter-spacing: -1px;
-}
-
-#sync-status {
-    position: fixed;
-    bottom: 40%;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10000;
-    background: #222222;
-    color: #00FF00;
-    padding: 14px 30px;
-    border-radius: 30px;
-    font-size: 15px;
-    font-weight: bold;
-    border: 2px solid #00FF00;
-    box-shadow: 0 4px 20px rgba(0, 255, 0, 0.2);
-    white-space: nowrap;
-    text-align: center;
-}
-
-/* ==========================================================================
-   6. COLLAPSIBLE ADMIN LEGENDE 
-   ========================================================================== */
-#map-legend {
-    position: fixed;
-    bottom: 24px;          
-    left: 12px;            
-    width: 260px;          
-    background: #111111;
-    border: 3px solid #333333;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    z-index: 2000; 
-    overflow: hidden;
-    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    max-height: 500px;     
-    color: #ffffff;
-}
-
-.legend-header {
-    background: #222222;
-    padding: 12px 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-    border-bottom: 2px solid #333;
-    user-select: none;
-    min-height: 44px;
-}
-
-.legend-toggle-icon {
-    font-size: 14px;
-    color: #00FF00;
-    transition: transform 0.3s ease;
-    transform: rotate(180deg); 
-}
-
-.legend-content {
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 9px;              
-    font-size: 14px;
-    line-height: 1.5;      
-}
-
-#map-legend.collapsed {
-    max-height: 48px;      
-}
-
-#map-legend.collapsed .legend-toggle-icon {
-    transform: rotate(0deg); 
-}
-
-/* ==========================================================================
-   7. GEOCODER SUCHE & MOBIL-FALLBACKS
-   ========================================================================== */
-.leaflet-top.leaflet-left .leaflet-control-geocoder {
-    margin-top: 15px !important;
-    margin-left: 12px !important;
-}
-
-.leaflet-control-geocoder a, 
-.leaflet-control-zoom a {
-    min-width: 44px !important;
-    min-height: 44px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    font-size: 18px !important;
-    background-color: #222222 !important;
-    color: #ffffff !important;
-    border: 2px solid #444 !important;
-}
-
-@media (max-width: 600px) {
-    #app-header {
-        position: sticky;
-    }
-    #map {
-        height: 35vh;
-    }
-    .leaflet-control-geocoder.leaflet-control-geocoder-expanded {
-        max-width: 220px !important; 
-    }
-}
+.modal-buttons { display: flex; justify-content: space-around; margin-top: 20px; }
+#modal-ja { background: #d32f2f; color: white; }
+#modal-nein { background: #333; color: white; }
