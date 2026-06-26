@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datenschutzerklärung & Impressum – StepFree Echo</title>
+    <link rel="stylesheet" href="style.css"> 
+    <meta name="theme-color" content="#ffffff">
+    <style>
+        body {
+            overflow-y: auto; /* Seite muss scrollbar sein */
+            background-color: #f8f9fa;
+            font-family: sans-serif;
+            display: block; /* Flex-Layout vom Body aufheben */
+            scroll-behavior: smooth;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 650px; /* Gleiche Breite wie die Anleitung für Konsistenz */
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .guide-card {
+            background: white;
+            padding: 24px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+        h1 { 
+            color: #2c3e50; 
+            font-size: 24px;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        h2 { 
+            color: #2c3e50; 
+            font-size: 18px;
+            margin-top: 25px; 
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 5px;
+        }
+        ul { 
+            padding-left: 20px; 
+            margin-bottom: 15px;
+        }
+        li {
+            margin-bottom: 8px;
+            font-size: 14.5px;
+            color: #555;
+        }
+        p {
+            font-size: 14.5px;
+            color: #555;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .back-button {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #3498db;
+            text-decoration: none;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        .back-button:hover {
+            transform: translateX(-3px);
+        }
+        /* Perfekt abgestimmte Impressum-Box im Design deiner App-Karten */
+        .footer-box { 
+            background-color: #f0f4f8; 
+            border: 1px solid rgba(0,0,0,0.03); 
+            padding: 24px; 
+            margin-top: 40px; 
+            border-radius: 15px; 
+        }
+        .footer-box h1 {
+            font-size: 20px;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        /* Schwebende Header-Insel für Unterseiten */
+        .header-insel {
+            position: sticky;
+            top: 15px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 10px 20px;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .brand-title {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 18px;
+            text-decoration: none;
+        }
+
+        /* Hamburger Button */
+        .menu-trigger {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #2c3e50;
+            cursor: pointer;
+            padding: 5px;
+            line-height: 1;
+        }
+
+        /* Das ausklappbare Menü-Panel */
+        .menu-panel {
+            display: none; /* Standardmäßig unsichtbar */
+            position: absolute;
+            top: 65px;
+            right: 10px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            width: 200px;
+            padding: 10px 0;
+        }
+
+        .menu-panel.show {
+            display: block; /* Wird per JavaScript sichtbar geschaltet */
+        }
+
+        .menu-panel a {
+            display: block;
+            padding: 12px 20px;
+            color: #2c3e50;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .menu-panel a:hover {
+            background-color: #f8f9fa;
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-insel">
+        <a href="index.html" class="brand-title">StepFree Echo</a>
+        <button class="menu-trigger" onclick="toggleMenu()" aria-label="Menü öffnen">≡</button>
+        
+        <div class="menu-panel" id="dropdownMenu">
+            <a href="index.html">🗺️ Zurück zur Karte</a>
+            <a href="anleitung.html">📖 Anleitung & Hilfe</a>
+        </div>
+    </div>
+
+    <div class="guide-card">
+        <h1>Datenschutzerklärung</h1>
+        <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 25px;">Stand: Juni 2026</p>
+
+        <p>Der Schutz deiner Privatsphäre ist uns ein zentrales Anliegen. Diese Web-App ist so konzipiert, dass sie komplett anonym, barrierefrei und ohne Registrierung genutzt werden kann. Im Folgenden informieren wir dich darüber, wie Daten verarbeitet werden.</p>
+
+        <h2>1. Verantwortlicher</h2>
+        <p>Verantwortlich für die Datenverarbeitung dieser Web-App ist der Entwickler von StepFree Echo (siehe Impressum unten).</p>
+
+        <h2>2. Hosting über GitHub Pages</h2>
+        <p>Diese Web-App wird auf GitHub Pages (GitHub Inc., 88 Colin P. Kelly Jr. St., San Francisco, CA 94107, USA) gehostet. Beim Aufruf der Webseite erfasst GitHub automatisch sogenannte Logfiles (u.a. deine IP-Adresse, Browsertyp, Betriebssystem, Datum und Uhrzeit des Aufrufs). Dies ist technisch notwendig, um dir die Webseite anzuzeigen und die Stabilität und Sicherheit zu gewährleisten. Die Rechtsgrundlage hierfür ist unser berechtigtes Interesse nach Art. 6 Abs. 1 lit. f DSGVO. Da Daten in die USA übertragen werden können, basiert diese Verarbeitung auf den EU-Standardvertragsklauseln. Weitere Informationen findest du in der Datenschutzerklärung von GitHub.</p>
+
+        <h2>3. Eigene App-Datenbank (Google Firebase)</h2>
+        <p>Für das Speichern und Abrufen der taktilen Blindenleitsysteme, akustischen Ampelanlagen und akuten Wegblockaden in Echtzeit nutzt diese App eine dedizierte, eigene Instanz von Google Firebase Realtime Database (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland). Die Rechtsgrundlage für den Einsatz dieses Dienstes ist unser berechtigtes Interesse an einer funktionsfähigen, dynamischen Assistenz-Infrastruktur nach Art. 6 Abs. 1 lit. f DSGVO.</p>
+        <ul>
+            <li><strong>Anonyme Struktur:</strong> Es werden keinerlei personenbezogene Profile, Namen, E-Mail-Adressen oder Telefonnummern erfasst oder in der cloudbasierten Firebase-Datenbank hinterlegt.</li>
+            <li><strong>Einträge und Status-Checks:</strong> Wenn du eine taktile Infrastruktur meldest, eine Gefahrenstelle einträgst oder eine Community-Verifizierung vornimmst, werden ausschließlich die geografischen Koordinaten (Breiten- und Längengrad), der ausgewählte Typ der Blinden-Infrastruktur bzw. Barriere sowie dein optionaler Beschreibungstext an Firebase übermittelt.</li>
+            <li><strong>Technische Verbindung:</strong> Zur Bereitstellung der Echtzeit-Verbindung verarbeitet Firebase im Hintergrund technisch notwendige Daten (wie z. B. deine IP-Adresse beim Verbindungsaufbau). Eine Zusammenführung dieser Daten mit anderen Datenquellen findet nicht statt; du bleibst als Person vollkommen anonym.</li>
+        </ul>
+
+        <h2>4. Standortermittlung (GPS) und Vor-Ort-Check-in</h2>
+        <p>Diese App nutzt die Geolocation-API deines Browsers, um deine Position auf der Karte anzuzeigen und den Sicherheits-Check-in vor Ort (z. B. zur Validierung einer defekten akustischen Ampel oder einer blockierten Leitlinie im Radius von unter 50 Metern) zu ermöglichen. Dies geschieht ausschließlich dann, wenn du der App über die standardmäßige Abfrage deines Browsers ausdrücklich die Erlaubnis dazu erteilt hast (Rechtsgrundlage ist deine Einwilligung nach Art. 6 Abs. 1 lit. a DSGVO). Deine Standortdaten werden zu keinem Zeitpunkt dauerhaft auf einem Server gespeichert oder mit deiner Identität verknüpft.</p>
+
+        <h2>5. Barrierefreie Sprachausgabe (Web Speech API)</h2>
+        <p>Zur Bereitstellung des akustischen Umgebungs-Echos nutzt diese App die integrierte Sprachausgabe-Funktion deines Endgeräts (Web Speech API / SpeechSynthesis). Die Verarbeitung der Texte erfolgt vollständig lokal im Webbrowser deines Geräts. Es werden dabei keine Audiodaten oder gesprochenen Texte an externe Server übertragen.</p>
+
+        <h2>6. Weiterleitung zu externen Kartendiensten (Google Maps)</h2>
+        <p>Wenn du in den Informationsbereichen oder innerhalb der taktilen barrierefreien Liste auf den Button <b>"Zielführung starten"</b> klickst, wirst du auf die externen Server von Google Maps (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland) weitergeleitet, um die Fußgänger-Navigation zu starten. Bei dieser Weiterleitung werden systembedingt Daten (wie deine IP-Adresse und die Koordinaten des Ziels) an Google übertragen. Hierauf haben wir keinen Einfluss. Es gilt die Datenschutzerklärung von Google.</p>
+
+        <h2>7. Lokale Speicherung (LocalStorage)</h2>
+        <p>Um die Integrität und Missbrauchssicherheit der Community-Daten zu gewährleisten, speichert die App anonymisierte Zustände (z. B. ob für ein bestimmtes Hindernis bereits abgestimmt wurde oder ob ein Status-Update innerhalb der letzten 24 Stunden gesendet wurde) lokal im Browser-Speicher (LocalStorage) deines Endgeräts. Diese Verarbeitung basiert auf unserem berechtigten Interesse (Art. 6 Abs. 1 lit. f DSGVO), fehlerhafte Informationen im Leitsystem zu minimieren. Diese Daten verbleiben ausschließlich auf deinem Gerät und werden nicht an uns oder Dritte weitergegeben. Du kannst diesen Speicher jederzeit in den Einstellungen deines Browsers leeren.</p>
+
+        <h2>8. Deine Rechte</h2>
+        <p>Nach der DSGVO hast du grundsätzlich das Recht auf Auskunft, Berichtigung, Löschung oder Einschränkung der Verarbeitung deiner Daten. <b>Bitte beachte jedoch:</b> Da wir keine personenbezogenen Daten, Profile oder IP-Adressen von dir dauerhaft speichern, können wir keine Auskunft über deine Daten geben oder diese manuell löschen, da wir die Einträge im System zu keinem Zeitpunkt einer echten Person oder einem bestimmten Nutzer zuordnen können. Bei allgemeinen Fragen kannst du dich jedoch jederzeit an uns wenden.</p>
+    </div>
+
+    <div class="footer-box">
+        <h1>Impressum</h1>
+        <p><strong>Dienstanbieter und Verantwortlicher für diese Webseite:</strong></p>
+        <p style="line-height: 1.5; font-family: monospace; background: rgba(0,0,0,0.02); padding: 10px; border-radius: 8px; color: #2c3e50;">
+            Nathanael Renz<br>
+            Steingartenstraße 41/1<br>
+            70794 Filderstadt
+        </p>
+
+        <p style="margin-top: 15px;"><strong>Kontaktmöglichkeit:</strong></p>
+        <p>E-Mail: <a href="mailto:nathanael.renz@gmx.de" style="color: #3498db; text-decoration: none; font-weight: bold;">nathanael.renz@gmx.de</a></p>
+
+        <p style="margin-top: 20px; font-style: italic; font-size: 13px; color: #7f8c8d;">
+            Hinweis: Dies ist eine rein private, nicht-kommerzielle Webseite, die im Rahmen eines ehrenamtlichen Inklusionsprojekts betrieben wird. Es werden keinerlei Einnahmen erzielt.
+        </p>
+        <footer style="text-align: center; color: #bdc3c7; font-size: 13px; margin-top: 40px; margin-bottom: 20px;">
+           Renz Software &copy; 2026
+        </footer>
+    </div>
+</div>
+
+<script>
+function toggleMenu() {
+    const menu = document.getElementById('dropdownMenu');
+    menu.classList.toggle('show');
+}
+
+// Schließt das Menü, wenn man irgendwo anders hinklickt
+window.onclick = function(event) {
+    if (!event.target.matches('.menu-trigger')) {
+        const dropdowns = document.getElementsByClassName("menu-panel");
+        for (let i = 0; i < dropdowns.length; i++) {
+            const openDropdown = dropdowns[i];
+            if (openDropdown.classList.contains('show')) {
+                openDropdown.classList.remove('show');
+            }
+        }
+    }
+}
+</script>
+
+</body>
+</html>
