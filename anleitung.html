@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anleitung – StepFree</title>
+    <title>Anleitung – StepFree Echo</title>
     <link rel="stylesheet" href="style.css"> 
     <meta name="theme-color" content="#ffffff">
     <style>
@@ -230,50 +230,28 @@
 </head>
 <body>
 
-<div class="container">
+<div class="container" id="mainContent">
     <div class="header-insel">
-        <a href="index.html" class="brand-title">StepFree</a>
+        <a href="index.html" class="brand-title">StepFree Echo</a>
         <button class="menu-trigger" onclick="toggleMenu(event)">≡</button>
         
         <div class="menu-panel" id="dropdownMenu">
             <a href="index.html">🗺️ Zurück zur Karte</a>
-            <a href="#merkliste">⭐ Meine Merkliste</a>
             <a href="datenschutz.html">🔒 Datenschutz & Impressum</a>
         </div>
     </div>
 
     <h1 style="color: #2c3e50; margin-bottom: 5px; font-size: 28px;">Handbuch & Anleitung</h1>
-    <p style="color: #7f8c8d; margin-bottom: 30px; font-size: 14px; font-weight: 500;">Version 1.7 – Stand: 26. Juni 2026</p>
+    <p style="color: #7f8c8d; margin-bottom: 30px; font-size: 14px; font-weight: 500;">Version 1.7 – Stand: Juni 2026</p>
 
     <div class="guide-card">
         <h3 style="color: #2c3e50; margin-top: 0; margin-bottom: 10px; font-size: 18px;">Vorwort</h3>
         <p style="color: #555; line-height: 1.6; margin: 0; font-size: 15px;">
-            Willkommen bei <b>StepFree</b>! Diese Anwendung wurde speziell entwickelt, um Barrieren im öffentlichen Raum sichtbar zu machen und barrierefreie Wege für blinde sowie sehbehinderte Menschen verlässlich gestaltbar zu machen. Durch das Zusammenspiel aus präzisen taktilen und akustischen Meldungen und einer engagierten Community schaffen wir gemeinsam maximale Transparenz und barrierefreie Orientierung im Alltag. Schön, dass du dabei bist!
+            Willkommen bei <b>StepFree Echo</b>! Diese Anwendung wurde speziell entwickelt, um Barrieren im öffentlichen Raum sichtbar zu machen und barrierefreie Wege für blinde sowie sehbehinderte Menschen verlässlich gestaltbar zu machen. Durch das Zusammenspiel aus präzisen taktilen und akustischen Meldungen und einer engagierten Community schaffen wir gemeinsam maximale Transparenz und barrierefreie Orientierung im Alltag. Schön, dass du dabei bist!
         </p>
     </div>
 
-    <div class="toc-card">
-        <h3>Inhalt der Anleitung</h3>
-        <ul class="toc-list">
-            <li><a href="#kategorien">1. Meldbare Kategorien & Merkmale</a></li>
-            <li><a href="#eintrag">2. Einträge auf der Karte hinzufügen</a></li>
-            <li class="sub-item"><a href="#karte">2.1. Karte anklicken und melden</a></li>
-            <li class="sub-item"><a href="#laufzeiten">2.2. Automatische Laufzeiten</a></li>
-            <li><a href="#suche-filter">3. Suchen & Filtern richtig nutzen</a></li>
-            <li class="sub-item"><a href="#suchleiste">3.1. Die Suchleiste</a></li>
-            <li class="sub-item"><a href="#header">3.2. Die Filter-Schaltflächen</a></li>
-            <li><a href="#merkliste">4. Merkliste & Favoriten (Orte speichern)</a></li>
-            <li><a href="#navigation">5. Routen & Navigation starten</a></li>
-            <li><a href="#voting">6. Voting & Check-In (Effektive Nutzung)</a></li>
-            <li class="sub-item"><a href="#vote">6.1. Einträge bewerten</a></li>
-            <li class="sub-item"><a href="#check-in">6.2. Der Live-Check-In</a></li>
-            <li><a href="#pwa">7. Als App auf dem Smartphone speichern</a></li>
-            <li class="sub-item"><a href="#ios">7.1. Anleitung für iPhone</a></li>
-            <li class="sub-item"><a href="#android">7.2. Anleitung für Android</a></li>
-        </ul>
-    </div>
-
-    <!-- SEKTION 1: KATEGORIEN (Ausschließlich die 7 meldbaren Punkte aus image_2.png) -->
+    <!-- SEKTION 1: KATEGORIEN -->
     <div class="guide-section" id="kategorien">
         <h2>1. Meldbare Kategorien & Merkmale</h2>
         <div class="guide-card" style="border-left: 5px solid #2c3e50;">
@@ -291,8 +269,8 @@
                 <div class="step-icon" style="background: #C0392B; color: white;">📐</div>
                 <div class="step-text">
                     <span class="color-badge" style="background: #C0392B;">Dunkelrot</span>
-                    <h3>Schild/Ast auf Kopfhöhe</h3>
-                    <p>In den Gehweg ragende Gegenstände (z. B. tief hängende Schilder oder Äste). Diese werden vom Blindenlangstock am Boden nicht erfasst und bergen hohe Verletzungsgefahr.</p>
+                    <h3>Schild oder Ast auf Kopfhöhe</h3>
+                    <p>In den Gehweg ragende Gegenstände wie tief hängende Schilder oder Äste. Diese werden vom Blindenlangstock am Boden nicht erfasst und bergen hohe Verletzungsgefahr.</p>
                 </div>
             </div>
 
@@ -309,7 +287,7 @@
                 <div class="step-icon" style="background: #E67E22; color: white;">🦮</div>
                 <div class="step-text">
                     <span class="color-badge" style="background: #E67E22;">Orange</span>
-                    <h3>Fehlende Noppen/Rillen</h3>
+                    <h3>Fehlende Noppen oder Rillen</h3>
                     <p>Bereiche an Kreuzungen, Plätzen oder Übergängen, an denen wichtige Bodenindikatoren zur Orientierung unvollständig sind oder komplett fehlen.</p>
                 </div>
             </div>
@@ -337,7 +315,7 @@
                 <div class="step-text">
                     <span class="color-badge" style="background: #2980B9;">Blau</span>
                     <h3>Sprechender Fahrplan</h3>
-                    <p>Haltestellen mit integrierter akustischer Sprachausgabe (meist per Knopfdruck) zur barrierefreien Ansage von Abfahrtszeiten.</p>
+                    <p>Haltestellen mit integrierter akustischer Sprachausgabe meist per Knopfdruck zur barrierefreien Ansage von Abfahrtszeiten.</p>
                 </div>
             </div>
 
@@ -361,7 +339,7 @@
                 <div class="step-text">
                     <span class="color-badge" style="background: #27AE60;">Grün</span>
                     <h3 id="laufzeiten">2.2. Automatische Laufzeiten</h3>
-                    <p>Neu eingetragene Gefahren-Baustellen erhalten beim Erstellen automatisch ein Ablaufdatum von 7 Tagen. Temporäre Blockaden (wie blockierte Leitlinien) verfallen automatisch nach 24 Stunden, sofern sie nicht verlängert werden.</p>
+                    <p>Neu eingetragene Gefahren-Baustellen erhalten beim Erstellen automatisch ein Ablaufdatum von 7 Tagen. Temporäre Blockaden wie blockierte Leitlinien verfallen automatisch nach 24 Stunden, sofern sie nicht verlängert werden.</p>
                 </div>
             </div>
         </div>
@@ -375,16 +353,16 @@
                 <div class="step-icon" style="background: #7F8C8D; color: white;">🔍</div>
                 <div class="step-text">
                     <span class="color-badge" style="background: #7F8C8D;">Grau</span>
-                    <h3 id="suchleiste">3.1. Die Suchleiste (Oben Links)</h3>
-                    <p>Nutze die Suchleiste mit dem Lupe-Symbol, um direkt nach Adressen, bestimmten Stadtteilen oder Bahnhöfen zu suchen. Die Ansicht springt sofort dorthin.</p>
+                    <h3 id="suchleiste">3.1. Die Suchleiste</h3>
+                    <p>Nutze die Suchleiste mit dem Lupe-Symbol am oberen linken Bildschirmrand, um direkt nach Adressen, bestimmten Stadtteilen oder Bahnhöfen zu suchen. Die Ansicht springt sofort dorthin.</p>
                 </div>
             </div>
             <div class="step">
                 <div class="step-icon" style="background: #2980B9; color: white;">🎨</div>
                 <div class="step-text">
                     <span class="color-badge" style="background: #2980B9;">Blau</span>
-                    <h3 id="header">3.2. Die Filter-Schaltflächen / Badges</h3>
-                    <p>Über die Filter-Insel am oberen Bildschirmrand (z. B. "Baustellen ohne Tastleiste") kannst du per Klick bestimmte Marker ein- oder ausblenden, um die Karte übersichtlich zu halten.</p>
+                    <h3 id="header">3.2. Die Filter-Schaltflächen</h3>
+                    <p>Über die Filter-Insel am oberen Bildschirmrand kannst du per Klick bestimmte Marker ein- oder ausblenden, um die Karte übersichtlich zu halten.</p>
                 </div>
             </div>
         </div>
@@ -392,7 +370,7 @@
 
     <!-- SEKTION 4: MERKLISTE -->
     <div class="guide-section" id="merkliste">
-        <h2>4. Merkliste & Favoriten (Orte speichern)</h2>
+        <h2>4. Merkliste & Favoriten</h2>
         <div class="guide-card">
             <div class="step">
                 <div class="step-icon" style="background: #F1C40F; color: black;">⭐</div>
@@ -400,8 +378,8 @@
                     <span class="color-badge" style="background: #F1C40F; color: black;">Gelb</span>
                     <h3>Wichtige Orte immer im Blick</h3>
                     <p>Speichere häufig genutzte taktile Umsteigepunkte oder kritische Hindernisse auf deinen täglichen Wegen:</p>
-                    <p style="margin-top: 8px;">🔹 Klicke im Info-Popup eines Markers auf das Stern- oder Herz-Symbol, um ihn zu deinen Favoriten hinzuzufügen.</p>
-                    <p style="margin-top: 5px;">🔹 Rufe deine gemerkten Einträge jederzeit ab, indem du im Hauptmenü (≡) auf <b>"⭐ Meine Merkliste"</b> klickst.</p>
+                    <p style="margin-top: 8px;">Erstens: Klicke im Info-Popup eines Markers auf das Stern- oder Herz-Symbol, um ihn zu deinen Favoriten hinzuzufügen.</p>
+                    <p style="margin-top: 5px;">Zweitens: Rufe deine gemerkten Einträge jederzeit ab, indem du im Hauptmenü auf Meine Merkliste klickst.</p>
                 </div>
             </div>
         </div>
@@ -416,7 +394,7 @@
                 <div class="step-text">
                     <span class="color-badge" style="background: #16A085;">Türkis</span>
                     <h3>Nahtlose Weiterleitung</h3>
-                    <p>Nutze im Info-Fenster eines Markers die Schaltfläche "Route in Google Maps starten". Der Standort wird direkt übergeben und öffnet die Navigation in deiner externen Navigations-App.</p>
+                    <p>Nutze im Info-Fenster eines Markers die Schaltfläche Route in Google Maps starten. Der Standort wird direkt übergeben und öffnet die Navigation in deiner externen Navigations-App.</p>
                 </div>
             </div>
         </div>
@@ -424,14 +402,14 @@
 
     <!-- SEKTION 6: VOTING & LIVE-CHECK-IN -->
     <div class="guide-section" id="voting">
-        <h2>6. Voting & Check-In (Effektive Nutzung)</h2>
+        <h2>6. Voting & Check-In</h2>
         <div class="guide-card">
             <div class="step">
                 <div class="step-icon" style="background: #2ECC71; color: white;">👍</div>
                 <div class="step-text">
                     <span class="color-badge" style="background: #2ECC71;">Hellgrün</span>
-                    <h3 id="vote">6.1. Einträge bewerten (Glow-Effekt)</h3>
-                    <p>Erhält ein gemeldeter Punkt +3 positive Bewertungen aus der Community, gilt er als verifiziert und erhält ein <b>grün leuchtendes Signal</b> auf der Karte. Bei -3 Negativ-Bewertungen prüft das System den Eintrag.</p>
+                    <h3 id="vote">6.1. Einträge bewerten</h3>
+                    <p>Erhält ein gemeldeter Punkt drei positive Bewertungen aus der Community, gilt er als verifiziert und erhält ein grün leuchtendes Signal auf der Karte. Bei drei Negativ-Bewertungen prüft das System den Eintrag.</p>
                 </div>
             </div>
             <div class="step">
@@ -439,11 +417,11 @@
                 <div class="step-text">
                     <span class="color-badge" style="background: #E67E22;">Orange</span>
                     <h3 id="check-in">6.2. Der Live-Check-In & Umgebungs-Check</h3>
-                    <p>Befindest du dich im Radius von 50 Metern um ein Hindernis, kannst du den blauen Button <b>"Umgebungs-Check scannen"</b> nutzen. Bei Baustellen öffnet sich das Management-Menü:</p>
-                    <p style="margin-top: 6px; font-size: 13.5px; color: #444; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee;">
-                        🔵 <b>"Existiert noch (+7 Tage)"</b> – Verlängert die Gültigkeit unkompliziert um eine Woche.<br><br>
-                        🟡 <b>"Enddatum ändern"</b> – Hinterlegt ein präzises, geplantes Abschlussdatum für die Arbeiten.<br><br>
-                        🔴 <b>"Komplett aufgelöst"</b> – Entfernt das Hindernis sofort von der Karte, sobald der Weg wieder frei ist.
+                    <p>Befindest du dich im Radius von 50 Metern um ein Hindernis, kannst du den blauen Button Umgebungs-Check scannen nutzen. Bei Baustellen öffnet sich das Management-Menü:</p>
+                    <p style="margin-top: 6px; font-size: 14px; color: #444; background: #f9f9f9; padding: 12px; border-radius: 8px;">
+                        Option eins: Existiert noch. Das verlängert die Gültigkeit um eine Woche.<br><br>
+                        Option zwei: Enddatum ändern. Hinterlegt ein präzises, geplantes Abschlussdatum.<br><br>
+                        Option drei: Komplett aufgelöst. Entfernt das Hindernis sofort von der Karte.
                     </p>
                 </div>
             </div>
@@ -454,14 +432,14 @@
     <div class="guide-section" id="pwa">
         <h2>7. Als App auf dem Smartphone speichern</h2>
         <div class="guide-card">
-            <p style="color: #555; line-height: 1.5; margin-top: 0; margin-bottom: 15px;">Die Anwendung läuft direkt im Browser, lässt sich aber als Progressive Web App (PWA) wie eine normale App auf dem Startbildschirm installieren:</p>
+            <p>Die Anwendung läuft direkt im Browser, lässt sich aber als App auf dem Startbildschirm installieren:</p>
             
             <div class="step">
                 <div class="step-icon" style="background: #34495E; color: white; font-weight: bold; font-size: 12px;">iOS</div>
                 <div class="step-text">
                     <span class="color-badge" style="background: #34495E;">Dunkelgrau</span>
                     <h3 id="ios">7.1. Anleitung für iPhone (Safari Browser)</h3>
-                    <p>Tippe unten auf das Teilen-Symbol (Quadrat mit Pfeil nach oben) und wähle dann <b>"Zum Home-Bildschirm"</b> aus.</p>
+                    <p>Tippe unten auf das Teilen-Symbol (Quadrat mit Pfeil nach oben) und wähle dann Zum Home-Bildschirm aus.</p>
                 </div>
             </div>
             
@@ -470,17 +448,12 @@
                 <div class="step-text">
                     <span class="color-badge" style="background: #2C3E50;">Anthrazit</span>
                     <h3 id="android">7.2. Anleitung für Android (Google Chrome)</h3>
-                    <p>Tippe oben rechts auf die drei Punkte und wähle <b>"App installieren"</b> oder <b>"Zum Startbildschirm hinzufügen"</b>.</p>
+                    <p>Tippe oben rechts auf die drei Punkte und wähle App installieren oder Zum Startbildschirm hinzufügen.</p>
                 </div>
-            </div>
-            
-            <div class="tip-box" style="margin-top: 15px; background: #f9f9f9; padding: 12px; border-left: 4px solid #F1C40F; border-radius: 4px;">
-                💡 <b>Tipp:</b> Wenn du die App über den Startbildschirm öffnest, lädt sie im eleganten, ablenkungsfreien Vollbildmodus ohne disruptive Browser-Adressleisten!
             </div>
         </div>
     </div>
 
-    <!-- FOOTER -->
     <footer>
         Renz Software &copy; 2026
     </footer>
@@ -504,6 +477,70 @@ window.onclick = function(event) {
         }
     }
 }
+
+// --- INTELLIGENTE AKUSTISCHE ASSISTENZ-ENGINE ---
+
+let speechStarted = false;
+
+function cleanTextForSpeech(text) {
+    return text
+        .replace(/[🚧📐🛴🦮🔊🚉🗣️📍⏳🔍🎨⭐🗺️👍🧭🔹🔵🟡🔴👉≡]/g, '')
+        .replace(/&copy;/g, 'Copyright')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function startHandbuchVorlesen() {
+    if (speechStarted) return; // Verhindert doppeltes Abspielen
+    
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // Laufende Sprachausgaben stoppen
+
+        const elements = document.querySelectorAll('h1, .guide-card, h2, .step-text');
+        let textArray = [
+            "Du hast das Handbuch geöffnet. Ich lese dir die Abschnitte jetzt nacheinander vor. " +
+            "Du kannst das Vorlesen jederzeit abbrechen und zur Karte zurückkehren, indem du die Taste 9 drückst."
+        ];
+
+        elements.forEach(el => {
+            let elText = el.innerText || el.textContent;
+            let cleaned = cleanTextForSpeech(elText);
+            if(cleaned.length > 3 && !textArray.includes(cleaned)) {
+                textArray.push(cleaned);
+            }
+        });
+
+        const fullSpeechText = textArray.join(". ");
+        const utterance = new SpeechSynthesisUtterance(fullSpeechText);
+        utterance.lang = 'de-DE';
+        utterance.rate = 1.05;
+        utterance.pitch = 1.0;
+
+        window.speechSynthesis.speak(utterance);
+        speechStarted = true;
+        
+        // Entferne die visuellen/akustischen Aktivierungs-Hinweise nach dem Start
+        const hint = document.getElementById('audio-start-hint');
+        if (hint) hint.remove();
+    }
+}
+
+// 1. Aktivierung durch JEDEN beliebigen Tastendruck (Perfekt für blinde Nutzer)
+window.addEventListener('keydown', (event) => {
+    // Wenn Taste 9 gedrückt wird, sofort abbrechen und zurück zur Karte
+    if (event.key === '9') {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        window.location.href = "index.html";
+        return;
+    }
+    
+    // Jede andere Taste startet die Sprachausgabe
+    startHandbuchVorlesen();
+});
+
+// 2. Aktivierung durch Klick/Touch irgendwo auf den Bildschirm
+window.addEventListener('click', startHandbuchVorlesen);
+window.addEventListener('touchstart', startHandbuchVorlesen);
 </script>
 </body>
 </html>

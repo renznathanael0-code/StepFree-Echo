@@ -238,6 +238,31 @@ window.onclick = function(event) {
         }
     }
 }
+
+// Automatisches Vorlesen der Unterseite beim Aufruf
+window.addEventListener('DOMContentLoaded', () => {
+    // Holt sich den reinen Text aus der Inhalts-Karte
+    const textToRead = document.querySelector('.guide-card').innerText;
+    
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(
+            "Du befindest dich auf der Text-Unterseite. Ich lese den Inhalt jetzt vor. Zum Abbrechen oder Zurückkehren zur Karte, drücke die Taste 9. " + textToRead
+        );
+        utterance.lang = 'de-DE';
+        utterance.rate = 1.05; // Leicht erhöhtes Tempo für Dokumente
+        window.speechSynthesis.speak(utterance);
+    }
+});
+
+// Tastatur-Shortcut zurück zur Hauptkarte
+window.addEventListener('keydown', (event) => {
+    if (event.key === '9') {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        window.location.href = "index.html";
+    }
+});
+
 </script>
 
 </body>
