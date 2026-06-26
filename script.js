@@ -1,19 +1,126 @@
 const isAdminPage = window.location.pathname.includes("admin.html");
 
-// --- AKUSTISCHES FEEDBACK ENGINE (Text-to-Speech für Blinde) ---
+// --- AKUSTISCHES FEEDBACK ENGINE (Text-to-Speech) ---
 const AudioEcho = {
-    speak(text) {
+    speak(text, callback) {
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel(); // Laufende Ansagen abbrechen
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'de-DE';
             utterance.rate = 1.0;
+            
+            if (callback) {
+                utterance.onend = callback; // Führt Code aus, wenn das Sprechen beendet ist
+            }
+            
             window.speechSynthesis.speak(utterance);
         }
         // Fallback für Screenreader über ARIA-Live-Kanal
         const announcer = document.getElementById('screenreader-live-announcer');
         if (announcer) {
             announcer.textContent = text;
+        }
+    }
+};
+
+// --- INTELLIGENTE SPRACH-ERKENNUNGS ENGINE (Voice Control) ---
+const VoiceControl = {
+    recognition: null,
+    isListening: false,
+
+    init() {
+        const SpeedRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeedRecognition) {
+            console.log("Spracherkennung wird von diesem Browser nicht unterstützt.");
+            return;
+        }
+
+        this.recognition = new SpeedRecognition();
+        this.recognition.lang = 'de-DE';
+        this.recognition.continuous = false; // Stoppt automatisch nach einem Befehl
+        this.recognition.interimResults = false;
+
+        this.recognition.onstart = () => {
+            this.isListening = true;
+            this.updateTriggerButton(true);
+        };
+
+        this.recognition.onresult = (event) => {
+            const command = event.results[0][0].transcript.toLowerCase().trim();
+            this.processCommand(command);
+        };
+
+        this.recognition.onerror = (event) => {
+            console.error("Sprachfehler:", event.error);
+            if (event.error === 'not-allowed') {
+                AudioEcho.speak("Mikrofon-Zugriff verweigert. Bitte erlaube das Mikrofon in den Einstellungen.");
+            }
+        };
+
+        this.recognition.onend = () => {
+            this.isListening = false;
+            this.updateTriggerButton(false);
+        };
+
+        // Globaler Hotkey: Leertaste drücken, um zuzuhören (außer in Eingabefeldern)
+        window.addEventListener('keydown', (e) => {
+            if (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                this.startListening();
+            }
+        });
+    },
+
+    startListening() {
+        if (this.isListening) return;
+        // Erst die Sprachausgabe stoppen, damit sich das System nicht selbst hört
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        
+        try {
+            this.recognition.start();
+        } catch (e) {
+            console.log("Erkennung läuft bereits.");
+        }
+    },
+
+    updateTriggerButton(active) {
+        const btn = document.getElementById('voice-trigger-btn');
+        if (btn) {
+            btn.style.background = active ? "#E74C3C" : "#00FF00";
+            btn.setAttribute('aria-label', active ? "System hört zu..." : "Sprachsteuerung starten");
+        }
+    },
+
+    processCommand(command) {
+        console.log("Erkannter Befehl:", command);
+
+        if (command.includes("scan") || command.includes("umgebung") || command.includes("zusammenfassung")) {
+            readEnvironmentSummary();
+        } 
+        else if (command.includes("anleitung") || command.includes("handbuch")) {
+            AudioEcho.speak("Öffne Handbuch.", () => { window.location.href = "anleitung.html"; });
+        } 
+        else if (command.includes("datenschutz") || command.includes("impressum")) {
+            AudioEcho.speak("Öffne Datenschutz.", () => { window.location.href = "datenschutz.html"; });
+        } 
+        else if (command.includes("menü") || command.includes("navigation öffnen")) {
+            toggleMenu();
+            AudioEcho.speak("Hauptmenü umschalten.");
+        }
+        else if (command.includes("filter zurücksetzen") || command.includes("alle anzeigen")) {
+            resetAllFilters();
+            AudioEcho.speak("Alle Filter wurden zurückgesetzt.");
+        }
+        else if (command.includes("baustelle")) {
+            activeSelectedFilters = ["Baustelle ohne Bodenführung"];
+            loadFromCommunity();
+            AudioEcho.speak("Filter auf Baustellen gesetzt.");
+        }
+        else if (command.includes("hilfe") || command.includes("befehle")) {
+            AudioEcho.speak("Mögliche Sprachbefehle sind: Scan, Anleitung, Datenschutz, Menü, Filter zurücksetzen oder Baustelle.");
+        }
+        else {
+            AudioEcho.speak(`Befehl ${command} nicht erkannt. Drücke die Leertaste und sage Hilfe für verfügbare Kommandos.`);
         }
     }
 };
@@ -175,6 +282,17 @@ async function initApp() {
     map.on('zoomend', loadFromCommunity);
     
     await loadFromCommunity();
+    VoiceControl.init(); // Spracherkennung starten
+
+    // Erstellt einen schwebenden Sprachsteuerungs-Button, falls nicht im HTML vorhanden
+    if (!document.getElementById('voice-trigger-btn')) {
+        const voiceBtn = document.createElement('button');
+        voiceBtn.id = "voice-trigger-btn";
+        voiceBtn.innerHTML = "🎙️ Befehl sprechen";
+        voiceBtn.style.cssText = "position:fixed; bottom:25px; right:25px; z-index:9999; min-height:54px; padding:0 20px; background:#00FF00; color:#000; border:none; border-radius:27px; font-weight:bold; font-size:1.1em; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.3);";
+        voiceBtn.onclick = () => VoiceControl.startListening();
+        document.body.appendChild(voiceBtn);
+    }
     
     if (splash) {
         setTimeout(() => {
@@ -183,7 +301,7 @@ async function initApp() {
                 splash.style.display = 'none';
                 map.invalidateSize();
                 buildAccessibleList();
-                AudioEcho.speak("StepFree Echo geladen. Akustisches Blinden-Leitsystem ist aktiv.");
+                AudioEcho.speak("StepFree Echo geladen. Akustisches Blinden-Leitsystem ist aktiv. Halte die Leertaste gedrückt, um einen Sprachbefehl einzusprechen.");
             }, 500);
         }, 800);
     }
@@ -234,12 +352,10 @@ async function loadFromCommunity() {
     }
 }
 
-// --- GENERIERUNG DER ACCESSIBLE TACTILE LISTE FÜR SCREENREADER & LOW-VISION ---
 function buildAccessibleList() {
     const listSection = document.getElementById('blind-navigation-section');
     if (!listSection) return;
 
-    // Behalte die Überschrift und die Audio-Steuerelemente bei
     listSection.innerHTML = `
         <h2 id="list-heading" tabindex="0">🔊 Akustische Umgebungs-Echozentrale</h2>
         <div class="audio-controls">
@@ -257,7 +373,6 @@ function buildAccessibleList() {
     reportsData.forEach(r => {
         let typliste = Array.isArray(r.typ) ? r.typ : [r.typ];
         
-        // Prüfen, ob Filter aktiv sind
         if (activeSelectedFilters.length > 0) {
             const passtZuFiltern = activeSelectedFilters.some(f => typliste.some(t => t.includes(f) || f.includes(t)));
             if (!passtZuFiltern) return;
@@ -272,7 +387,6 @@ function buildAccessibleList() {
 
         card.setAttribute('aria-label', `Eintrag: ${typliste.join(', ')}.${verifiziertText}. ${details}`);
 
-        // Google Maps Struktur repariert
         const googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}&travelmode=walking`;
 
         card.innerHTML = `
@@ -366,7 +480,6 @@ function drawMarkersOnMap() {
     });
 }
 
-// --- VERIFIZIERUNG & MODERATION ---
 function verifyByLocation(id) {
     const report = reportsData.find(r => r.id === id);
     if (!report) return;
@@ -471,8 +584,8 @@ window.downloadBackup = downloadBackup;
 function toggleMenu() {
     const menu = document.getElementById('side-menu');
     const overlay = document.getElementById('menu-overlay');
-    menu.classList.toggle('open');
-    overlay.classList.toggle('show');
+    if(menu) menu.classList.toggle('open');
+    if(overlay) overlay.classList.toggle('show');
 }
 
 function toggleLegend() {
