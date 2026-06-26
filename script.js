@@ -308,4 +308,17 @@ function triggerAudioWarning() {
     if (navigator.vibrate) navigator.vibrate([300]);
 }
 
-window.onload = () => { setupLocationTracking(); };
+// Aktivierung triggern, sobald der User die Seite berührt oder lädt
+window.onload = () => { 
+    setupLocationTracking(); 
+    
+    // Fallback: Falls der Browser beim Laden blockiert hat, 
+    // aktivieren wir es, sobald der User irgendwo hinklickt/tippt
+    document.body.addEventListener('click', () => {
+        if (!userCoords) {
+            console.log("Re-Aktivierung durch Benutzerinteraktion...");
+            setupLocationTracking();
+        }
+    }, { once: true }); // Führt das nur einmal aus
+};
+
