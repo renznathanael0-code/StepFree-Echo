@@ -1,159 +1,182 @@
-// 1. FIREBASE CONFIGURATION mit deiner Realtime Database URL
-const firebaseConfig = {
-    apiKey: "DEIN_API_KEY", // Musst du noch aus der Konsole holen
-    authDomain: "stepfree-echo.firebaseapp.com",
-    databaseURL: "https://stepfree-echo-default-rtdb.europe-west1.firebasedatabase.app/",
-    projectId: "stepfree-echo",
-    storageBucket: "stepfree-echo.appspot.com",
-    messagingSenderId: "DEINE_SENDER_ID", // Aus der Konsole holen
-    appId: "DEINE_APP_ID" // Aus der Konsole holen
-};
+const DB_URL = "https://stepfree-echo-default-rtdb.europe-west1.firebasedatabase.app/obstacles.json";
+const BASE_URL = "https://stepfree-echo-default-rtdb.europe-west1.firebasedatabase.app/obstacles/";
 
-// Firebase initialisieren
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database(); // Jetzt als Realtime Database
-const auth = firebase.auth();
+if (!localStorage.getItem('user_voice_id')) {
+    localStorage.setItem('user_voice_id', 'user_' + Math.random().toString(36).substring(2, 11));
+}
+const userId = localStorage.getItem('user_voice_id');
 
-let currentUserUid = null;
 let userLatitude = null;
 let userLongitude = null;
 
-// Anonyme Anmeldung
-auth.signInAnonymously()
-    .then((userCredential) => {
-        currentUserUid = userCredential.user.uid;
-        console.log("Anonym eingeloggt mit ID:", currentUserUid);
-        loadObstacles();
-    })
-    .catch((error) => { console.error("Login Fehler:", error); });
+// --- LEAFLET KARTEN-INITIALISIERUNG ---
+// Wir starten mit einer Standard-Ansicht (Deutschland)
+const map = L.map('map').setView([51.1657, 10.4515], 6);
 
-// [HINWEIS: Abschnitte 2, 3 und 4 (GPS und Sprache) bleiben genau wie vorher!]
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap-Mitwirkende'
+}).addTo(map);
 
-// 5. HINDERNIS IN REALTIME DATABASE SPEICHERN
+let userMarker = null;
+let markerGroup = L.layerGroup().addTo(map); // Gruppe für alle Hindernis-Marker
+
+// 1. GPS Standortermittlung & Zentrierung
+if (navigator.geolocation) {
+    navigator.geolocation.watchPosition((position) => {
+        userLatitude = position.coords.latitude;
+        userLongitude = position.coords.longitude;
+
+        // Karte auf den Nutzer zentrieren beim ersten Finden
+        if (userMarker === null) {
+            map.setView([userLatitude, userLongitude], 16);
+            userMarker = L.circle([userLatitude, userLongitude], {
+                color: 'blue',
+                fillColor: '#30f',
+                fillOpacity: 0.5,
+                radius: 10
+            }).addTo(map).bindPopup("Ihr aktueller Standort");
+        } else {
+            userMarker.setLatLng([userLatitude, userLongitude]);
+        }
+    }, (err) => console.log("Warte auf GPS..."), { enableHighAccuracy: true });
+}
+
+// 2. Sprachausgabe
+function speak(text) {
+    const announcer = document.getElementById('screenreader-announcer');
+    if (announcer) announcer.textContent = text;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'de-DE';
+    window.speechSynthesis.speak(utterance);
+}
+
+// [HINWEIS: Sprachsteuerung (Abschnitt 3) und Formular-Senden (Abschnitt 4) bleiben exakt gleich!]
+const startBtn = document.getElementById('start-speech');
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'de-DE';
+    recognition.continuous = true;
+
+    startBtn.addEventListener('click', () => {
+        recognition.start();
+        document.getElementById('speech-status').textContent = "Sprachsteuerung aktiv.";
+        speak("Sprachsteuerung aktiviert. Du kannst jetzt sprechen.");
+    });
+
+    recognition.onresult = (event) => {
+        const command = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+        if (command.includes('baustelle')) {
+            document.getElementById('obstacle-type').value = 'baustelle';
+            speak("Baustelle ausgewählt.");
+        } else if (command.includes('bordstein') || command.includes('kante')) {
+            document.getElementById('obstacle-type').value = 'hohe-kante';
+            speak("Hohe Bordsteinkante ausgewählt.");
+        } else if (command.includes('speichern') || command.includes('senden')) {
+            document.getElementById('submit-btn').click();
+        }
+    };
+}
+
 document.getElementById('obstacle-form').addEventListener('submit', function(e) {
     e.preventDefault();
-
-    if (!userLatitude || !userLongitude) {
-        speak("Fehler: Es gibt noch kein GPS-Signal. Bitte warten Sie kurz.");
-        return;
-    }
+    if (!userLatitude) { speak("Warte auf GPS Signal."); return; }
 
     const type = document.getElementById('obstacle-type').value;
     const desc = document.getElementById('obstacle-desc').value;
 
-    // Neuen Eintrag in "obstacles" erstellen
-    const newObstacleRef = db.ref("obstacles").push();
-    
-    newObstacleRef.set({
+    const newObstacle = {
         type: type,
         description: desc,
         latitude: userLatitude,
         longitude: userLongitude,
-        timestamp: firebase.database.ServerValue.TIMESTAMP,
-        createdBy: currentUserUid,
-        votedUp: {},   // In RTDB nutzen wir Objekte statt Arrays für UIDs
+        votedUp: {},
         votedDown: {}
+    };
+
+    fetch(DB_URL, {
+        method: 'POST',
+        body: JSON.stringify(newObstacle)
     })
     .then(() => {
-        speak("Erfolgreich gespeichert. Das Hindernis wurde auf der Karte eingetragen.");
-        document.getElementById('obstacle-form').reset();
-    })
-    .catch((error) => {
-        console.error("Datenbankfehler:", error);
-        speak("Fehler beim Speichern in der Datenbank.");
+        speak("Erfolgreich gespeichert.");
+        this.reset();
+        loadObstacles();
     });
 });
 
-// 6. HINDERNISSE AUSLESEN UND LISTE AKTUALISIEREN
+// 5. Daten aus Firebase laden & Marker auf Karte zeichnen
 function loadObstacles() {
-    db.ref("obstacles").orderByChild("timestamp").on("value", (snapshot) => {
+    fetch(DB_URL)
+    .then(res => res.json())
+    .then(data => {
         const listContainer = document.getElementById('obstacles-list');
-        listContainer.innerHTML = ""; 
+        listContainer.innerHTML = "";
+        markerGroup.clearLayers(); // Alte Marker von der Karte entfernen
+        
+        if (!data) return;
 
-        if (!snapshot.exists()) {
-            listContainer.innerHTML = "<li>Keine Hindernisse in der Nähe gemeldet.</li>";
-            return;
-        }
-
-        // Einträge sammeln, um sie umzudrehen (neueste oben)
-        const items = [];
-
-        snapshot.forEach((childSnapshot) => {
-            const id = childSnapshot.key;
-            const data = childSnapshot.val();
-            
-            // Stimmen zählen (Anzahl der Keys im Objekt)
-            const upVotes = data.votedUp ? Object.keys(data.votedUp).length : 0;
-            const downVotes = data.votedDown ? Object.keys(data.votedDown).length : 0;
+        Object.keys(data).forEach(id => {
+            const item = data[id];
+            const upVotes = item.votedUp ? Object.keys(item.votedUp).length : 0;
+            const downVotes = item.votedDown ? Object.keys(item.votedDown).length : 0;
 
             const typeNames = {
                 'baustelle': 'Baustelle',
-                'kein-leitsystem': 'Fehlendes Blindenleitsystem',
                 'hohe-kante': 'Hohe Bordsteinkante',
-                'sonstiges': 'Sonstiges Hindernis'
+                'kein-leitsystem': 'Fehlendes Blindenleitsystem'
             };
+            const NameReingeschrieben = typeNames[item.type] || item.type;
 
-            const li = document.createElement('li');
-            li.className = "obstacle-item";
-            li.innerHTML = `
-                <p><strong>${typeNames[data.type] || 'Unbekannt'}</strong>: ${data.description || 'Keine Beschreibung'}</p>
-                <div class="voting-buttons">
-                    <button onclick="castVote('${id}', 'up')" aria-label="Bestätigen: Dieses Hindernis existiert. Aktuelle Stimmen: ${upVotes}">
-                        Stimmt (${upVotes})
-                    </button>
-                    <button onclick="castVote('${id}', 'down')" aria-label="Ablehnen: Existiert nicht mehr. Aktuelle Stimmen: ${downVotes}">
-                        Stimmt nicht (${downVotes})
-                    </button>
-                </div>
+            // --- BARRIEREFREIER LEAFLET MARKER ---
+            // 'keyboard: true' macht den Marker per Tabulator-Taste anwählbar
+            const marker = L.marker([item.latitude, item.longitude], {
+                keyboard: true,
+                title: `${NameReingeschrieben}: ${item.description}. Stimmen dafür: ${upVotes}`,
+                alt: `${NameReingeschrieben}: ${item.description}`
+            });
+
+            // Text, der beim Anklicken/Auswählen des Markers angezeigt und vorgelesen wird
+            const popupText = `
+                <b>${NameReingeschrieben}</b><br>${item.description}<br>
+                Empfohlen: ${upVotes} | Nicht da: ${downVotes}
             `;
-            items.push(li);
-        });
+            marker.bindPopup(popupText);
+            markerGroup.addLayer(marker);
 
-        // Neueste Meldungen oben anzeigen
-        items.reverse().forEach(li => listContainer.appendChild(li));
+            // Eintrag für die Textliste unter der Karte
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <p><strong>${NameReingeschrieben}</strong>: ${item.description}</p>
+                <button onclick="castVote('${id}', 'up')" aria-label="${NameReingeschrieben} bestätigen. Aktuell ${upVotes}">Stimmt (${upVotes})</button>
+                <button onclick="castVote('${id}', 'down')" aria-label="${NameReingeschrieben} ablehnen. Aktuell ${downVotes}">Stimmt nicht (${downVotes})</button>
+            `;
+            listContainer.appendChild(li);
+        });
     });
 }
 
-// 7. DAS VOTING-SYSTEM (Echtzeit & Sicher)
-window.castVote = function(id, voteType) {
-    if (!currentUserUid) return;
+// 6. Abstimmen
+window.castVote = function(id, type) {
+    fetch(`${BASE_URL}${id}.json`)
+    .then(res => res.json())
+    .then(item => {
+        let votedUp = item.votedUp || {};
+        let votedDown = item.votedDown || {};
 
-    const obstacleRef = db.ref("obstacles/" + id);
-
-    obstacleRef.once("value").then((snapshot) => {
-        if (!snapshot.exists()) return;
-        const data = snapshot.val();
-
-        let votedUp = data.votedUp || {};
-        let votedDown = data.votedDown || {};
-
-        const hasVotedUp = votedUp[currentUserUid] === true;
-        const hasVotedDown = votedDown[currentUserUid] === true;
-
-        if (voteType === 'up') {
-            if (hasVotedUp) {
-                delete votedUp[currentUserUid];
-                speak("Ihre Bestätigung wurde zurückgezogen.");
-            } else {
-                votedUp[currentUserUid] = true;
-                delete votedDown[currentUserUid]; // Gegenstimme entfernen
-                speak("Sie haben das Hindernis bestätigt.");
-            }
-        } else if (voteType === 'down') {
-            if (hasVotedDown) {
-                delete votedDown[currentUserUid];
-                speak("Ihre Ablehnung wurde zurückgezogen.");
-            } else {
-                votedDown[currentUserUid] = true;
-                delete votedUp[currentUserUid]; // Befürwortung entfernen
-                speak("Sie haben angegeben, dass das Hindernis nicht mehr existiert.");
-            }
+        if (type === 'up') {
+            if (votedUp[userId]) { delete votedUp[userId]; speak("Stimme zurückgezogen."); }
+            else { votedUp[userId] = true; delete votedDown[userId]; speak("Bestätigt."); }
+        } else {
+            if (votedDown[userId]) { delete votedDown[userId]; speak("Stimme zurückgezogen."); }
+            else { votedDown[userId] = true; delete votedUp[userId]; speak("Abgelehnt."); }
         }
 
-        // In Firebase überschreiben
-        return obstacleRef.update({
-            votedUp: votedUp,
-            votedDown: votedDown
-        });
+        fetch(`${BASE_URL}${id}/votedUp.json`, { method: 'PUT', body: JSON.stringify(votedUp) });
+        fetch(`${BASE_URL}${id}/votedDown.json`, { method: 'PUT', body: JSON.stringify(votedDown) })
+        .then(() => loadObstacles());
     });
 };
+
+// Beim Start laden
+loadObstacles();
