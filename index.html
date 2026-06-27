@@ -3,66 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gefahren-Radar für Blinde & Sehbehinderte</title>
+    <title>Barrierefreie Hindernis-Karte</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="sr-announcer" class="visually-hidden" aria-live="assertive" aria-atomic="true"></div>
-
     <header>
-        <h1>🛡️ BlindRadar</h1>
-        <p>Gemeinsam Hindernisse auf dem Gehweg melden und umgehen.</p>
-        <p id="gps-status" aria-live="polite">Suche GPS-Signal...</p>
+        <h1>Hindernis-Melder</h1>
+        <button id="start-speech" aria-label="Sprachsteuerung starten">Sprachsteuerung aktivieren</button>
+        <p id="speech-status" role="status">Sprachsteuerung ist offline.</p>
     </header>
 
     <main>
-        <section aria-labelledby="form-title">
-            <h2 id="form-title">Neue Gefahr an Ihrem Standort melden</h2>
-            <form id="multiReportForm" onsubmit="finalizeMultiReport(event)">
-                
-                <fieldset>
-                    <legend>Art der Störung (Mehrfachauswahl möglich)</legend>
-                    <label><input type="checkbox" name="typ" value="Baustelle auf Leitlinie"> 🚧 Baustelle auf Blindenleitsystem</label>
-                    <label><input type="checkbox" name="typ" value="E-Scooter quer auf Gehweg"> 🛴 E-Scooter quer auf dem Gehweg</label>
-                    <label><input type="checkbox" name="typ" value="Mülltonne blockiert Weg"> 🗑️ Mülltonne blockiert Leitlinie</label>
-                    <label><input type="checkbox" name="typ" value="Ast in Kopfhöhe"> 🌳 Ast / Strauch in Kopfhöhe</label>
-                    <label><input type="checkbox" name="typ" value="Akustisches Signal defekt"> 🔊 Akustisches Ampel-/Bahnsteig-Signal defekt</label>
-                    <label><input type="checkbox" name="typ" value="Auto auf Gehweg"> 🚗 Auto parkt auf dem Gehweg</label>
-                </fieldset>
+        <section id="map-container" aria-label="Interaktive Karte">
+            <div id="map" role="application" aria-label="Kartenansicht"></div>
+        </section>
 
-                <div class="form-group">
-                    <label for="multiDetails">Zusätzliche Beschreibung (Optional):</label>
-                    <textarea id="multiDetails" rows="3" placeholder="z.B. Sträucher hängen weit über den Zaun..."></textarea>
-                </div>
+        <section id="obstacle-form-section" aria-labelledby="form-title">
+            <h2 id="form-title">Neues Hindernis melden</h2>
+            <form id="obstacle-form">
+                <label for="obstacle-type">Art des Hindernisses:</label>
+                <select id="obstacle-type" required>
+                    <option value="baustelle">Baustelle</option>
+                    <option value="kein-leitsystem">Fehlendes Blindenleitsystem</option>
+                    <option value="hohe-kante">Hohe Bordsteinkante</option>
+                    <option value="sonstiges">Sonstiges Hindernis</option>
+                </select>
 
-                <button type="submit" class="btn-submit">📍 Gefahr an aktueller Position melden</button>
+                <label for="obstacle-desc">Beschreibung (optional):</label>
+                <input type="text" id="obstacle-desc" placeholder="z.B. Baustelle blockiert Gehweg">
+
+                <button type="submit" id="submit-btn">Hindernis an aktueller Position speichern</button>
             </form>
         </section>
 
-        <hr>
-
-        <section aria-labelledby="list-title">
-            <h2 id="list-title">Gefahren in Ihrer Nähe</h2>
-            
-            <div class="filter-container">
-                <p id="filter-desc">Nach Kategorie filtern:</p>
-                <div class="filter-buttons" role="group" aria-describedby="filter-desc">
-                    <button class="btn-filter" onclick="toggleFilter('Baustelle auf Leitlinie')">🚧 Baustellen</button>
-                    <button class="btn-filter" onclick="toggleFilter('E-Scooter quer auf Gehweg')">🛴 E-Scooter</button>
-                    <button class="btn-filter" onclick="toggleFilter('Mülltonne blockiert Weg')">🗑️ Mülltonnen</button>
-                    <button class="btn-filter" onclick="toggleFilter('Ast in Kopfhöhe')">🌳 Kopfhöhe</button>
-                    <button class="btn-filter" onclick="toggleFilter('Akustisches Signal defekt')">🔊 Ampelsignale</button>
-                    <button class="btn-filter" onclick="toggleFilter('Auto auf Gehweg')">🚗 Autos</button>
-                </div>
-            </div>
-
-            <ul id="obstacle-list" class="obstacle-list" aria-busy="true" aria-live="polite">
-                <li>Lade lokale Gefahrenmeldungen...</li>
+        <section id="obstacles-list-section" aria-labelledby="list-title">
+            <h2 id="list-title">Hindernisse in der Nähe</h2>
+            <ul id="obstacles-list">
+                <li class="obstacle-item">
+                    <p><strong>Baustelle Hauptstraße</strong> (Gemeldet am 27.06.2026)</p>
+                    <div class="voting-buttons">
+                        <button class="vote-up" aria-label="Bestätigen: Dieses Hindernis existiert">Stimmt (12)</button>
+                        <button class="vote-down" aria-label="Ablehnen: Dieses Hindernis existiert nicht mehr">Stimmt nicht (1)</button>
+                    </div>
+                </li>
             </ul>
         </section>
     </main>
 
-    <script src="script.js"></script>
+    <div id="screenreader-announcer" class="sr-only" aria-live="assertive"></div>
+
+    <script src="app.js"></script>
 </body>
 </html>
