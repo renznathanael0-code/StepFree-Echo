@@ -6,10 +6,11 @@ if (!localStorage.getItem('user_voice_id')) {
 }
 const userId = localStorage.getItem('user_voice_id');
 
-// Standardkoordinaten (Mitte von Deutschland) als Fallback fürs Testen ohne GPS
 let userLatitude = 51.1657;
 let userLongitude = 10.4515;
 let hasRealGPS = false;
+let isAppAwake = false;
+let awakeTimeout = null;
 
 // Karte initialisieren
 const map = L.map('map').setView([userLatitude, userLongitude], 6);
@@ -33,73 +34,118 @@ if (navigator.geolocation) {
         } else {
             userMarker.setLatLng([userLatitude, userLongitude]);
         }
-    }, (err) => console.log("GPS wird gesucht oder verweigert. Nutze Kartenmitte."), { enableHighAccuracy: true });
+    }, (err) => console.log("GPS sucht..."), { enableHighAccuracy: true });
 }
 
 // Sprachausgabe (Vorlesen)
 function speak(text) {
     const announcer = document.getElementById('screenreader-announcer');
     if (announcer) announcer.textContent = text;
-    window.speechSynthesis.cancel(); // Stoppt aktuelles Vorlesen, um sofort das Neue zu sagen
+    window.speechSynthesis.cancel(); 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'de-DE';
     window.speechSynthesis.speak(utterance);
 }
 
-// --- VERBESSERTE SPRACHSTEUERUNG (AUTO-START & ENDLOS-MODUS) ---
-if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'de-DE';
-    recognition.continuous = true; // Höre fortlaufend zu
-    recognition.interimResults = false;
+// LOGIK FÜR DEN STARTBILDSCHIRM (SPLASH SCREEN)
+const splash = document.getElementById('splash-screen');
+const appContent = document.getElementById('app-content');
 
-    // AUTOMATISCHER START BEIM LADEN DER SEITE
-    window.addEventListener('DOMContentLoaded', () => {
+splash.addEventListener('click', startApp);
+splash.addEventListener('touchstart', startApp);
+
+function startApp() {
+    // Falls die App schon läuft, nichts tun
+    if (splash.classList.contains('hidden')) return;
+
+    // Startbildschirm ausblenden, App einblenden
+    splash.classList.add('hidden');
+    appContent.classList.remove('hidden');
+
+    // Leaflet Karte neu berechnen, da sie im unsichtbaren Zustand geladen wurde
+    setTimeout(() => { map.invalidateSize(); }, 200);
+
+    // Begrüßung abspielen
+    speak("Willkommen bei StepFree Echo. Die App ist bereit. Rufe mich jederzeit mit dem Namen Echo.");
+    
+    // Sprachsteuerung initialisieren
+    initSpeechRecognition();
+}
+
+// SPRACHSTEUERUNG (ECHO AKTIVIERUNGSWORT)
+function initSpeechRecognition() {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'de-DE';
+        recognition.continuous = true;
+        recognition.interimResults = false;
+
         recognition.start();
-        document.getElementById('speech-status').textContent = "Sprachsteuerung aktiv (Dauerhören).";
-        speak("Willkommen beim Hindernis-Melder. Die Sprachsteuerung ist aktiv. Sage zum Beispiel Baustelle, Beschreibung Loch im Boden, oder Speichern.");
-    });
 
-    // WICHTIG: Wenn der Browser das Zeitfenster schließt, startet sich die App sofort selbst neu!
-    recognition.onend = () => {
-        console.log("Erkennung beendet – starte automatisch neu...");
-        recognition.start();
-    };
+        recognition.onend = () => {
+            recognition.start(); // Endlos-Modus
+        };
 
-    recognition.onresult = (event) => {
-        const command = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-        console.log("Erkannt:", command);
+        recognition.onresult = (event) => {
+            const command = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+            console.log("Gehört:", command);
+            const statusText = document.getElementById('speech-status');
 
-        // 1. Typ-Auswahl
-        if (command.includes('baustelle')) {
-            document.getElementById('obstacle-type').value = 'baustelle';
-            speak("Kategorie Baustelle ausgewählt.");
-        } else if (command.includes('bordstein') || command.includes('kante')) {
-            document.getElementById('obstacle-type').value = 'hohe-kante';
-            speak("Kategorie Hohe Bordsteinkante ausgewählt.");
-        } else if (command.includes('leitsystem')) {
-            document.getElementById('obstacle-type').value = 'kein-leitsystem';
-            speak("Kategorie Fehlendes Blindenleitsystem ausgewählt.");
-        } 
-        
-        // NEW: 2. KOMETAR / BESCHREIBUNG PER SPRACHE
-        else if (command.includes('beschreibung')) {
-            // Schneidet das Wort "beschreibung" ab und nimmt den Rest als Text
-            const textAfterCommand = command.split('beschreibung')[1].trim();
-            if (textAfterCommand) {
-                document.getElementById('obstacle-desc').value = textAfterCommand;
-                speak(`Beschreibung festgelegt auf: ${textAfterCommand}`);
-            } else {
-                speak("Bitte nenne eine Beschreibung nach dem Wort Beschreibung.");
+            // 1. Aufwecken mit "Echo"
+            if (command.includes('echo')) {
+                isAppAwake = true;
+                statusText.textContent = "Zuhören aktiv...";
+                speak("Ja? Ich höre.");
+                
+                clearTimeout(awakeTimeout);
+                awakeTimeout = setTimeout(putToSleep, 12000); // 12 Sekunden Zeitfenster
+                return;
             }
-        } 
-        
-        // 3. Speichern
-        else if (command.includes('speichern') || command.includes('senden')) {
-            document.getElementById('submit-btn').click();
-        }
-    };
+
+            // 2. Befehle verarbeiten (Nur wenn wach)
+            if (isAppAwake) {
+                // Timer bei jedem gesprochenen Wort erneuern
+                clearTimeout(awakeTimeout);
+                awakeTimeout = setTimeout(putToSleep, 12000);
+
+                if (command.includes('baustelle')) {
+                    document.getElementById('obstacle-type').value = 'baustelle';
+                    speak("Kategorie Baustelle ausgewählt.");
+                } else if (command.includes('bordstein') || command.includes('kante')) {
+                    document.getElementById('obstacle-type').value = 'hohe-kante';
+                    speak("Kategorie Hohe Bordsteinkante ausgewählt.");
+                } else if (command.includes('leitsystem')) {
+                    document.getElementById('obstacle-type').value = 'kein-leitsystem';
+                    speak("Kategorie Fehlendes Blindenleitsystem ausgewählt.");
+                } 
+                
+                // Beschreibung via Sprache ("Beschreibung [Dein Text]")
+                else if (command.includes('beschreibung')) {
+                    const textAfterCommand = command.split('beschreibung')[1].trim();
+                    if (textAfterCommand) {
+                        document.getElementById('obstacle-desc').value = textAfterCommand;
+                        speak(`Beschreibung festgelegt auf: ${textAfterCommand}`);
+                    } else {
+                        speak("Bitte nenne eine Beschreibung.");
+                    }
+                } 
+                
+                // Speichern
+                else if (command.includes('speichern') || command.includes('senden')) {
+                    document.getElementById('submit-btn').click();
+                    putToSleep();
+                }
+            }
+        };
+    }
+}
+
+function putToSleep() {
+    isAppAwake = false;
+    document.getElementById('speech-status').textContent = "Warte auf Aktivierungswort...";
+    speak("Ich schlafe wieder.");
+    clearTimeout(awakeTimeout);
 }
 
 // 4. Daten an Firebase senden (POST)
@@ -118,26 +164,15 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
         votedDown: {}
     };
 
-    if (!hasRealGPS) {
-        console.log("Speichere mit Test-Koordinaten, da kein GPS vorhanden.");
-    }
-
-    fetch(DB_URL, {
-        method: 'POST',
-        body: JSON.stringify(newObstacle)
-    })
+    fetch(DB_URL, { method: 'POST', body: JSON.stringify(newObstacle) })
     .then(() => {
-        speak("Erfolgreich in der Datenbank gespeichert.");
+        speak("Erfolgreich in StepFree Echo gespeichert.");
         document.getElementById('obstacle-form').reset();
         loadObstacles(); 
-    })
-    .catch(err => {
-        speak("Fehler beim Speichern.");
-        console.error(err);
     });
 });
 
-// 5. Daten laden & absichern against Crash
+// 5. Daten laden & absichern
 function loadObstacles() {
     fetch(DB_URL)
     .then(res => res.json())

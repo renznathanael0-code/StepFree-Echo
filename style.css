@@ -3,10 +3,50 @@ body {
     background-color: #ffffff;
     color: #000000;
     margin: 20px;
-    font-size: 1.2rem; /* Größere Schrift als Standard */
+    font-size: 1.2rem;
 }
 
-/* Wichtig für Screenreader-Texte, die visuell unsichtbar sein sollen */
+/* STARTBILDSCHIRM STYLING */
+#splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000000; /* Vollschwarz für hohen Kontrast */
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    z-index: 9999;
+    cursor: pointer;
+}
+
+.splash-content h1 {
+    font-size: 3.5rem;
+    margin-bottom: 20px;
+    color: #00ffcc; /* Gut lesbares Neongrün/Türkis */
+}
+
+.splash-content p {
+    font-size: 1.5rem;
+    padding: 0 20px;
+}
+
+/* Hilfsklassen zum Ein-/Ausblenden */
+.hidden {
+    display: none !important;
+}
+
+/* LEAFLET MAP & INTERFACES */
+#map {
+    height: 400px;
+    width: 100%;
+    margin-bottom: 20px;
+    border: 2px solid #000;
+}
+
 .sr-only {
     position: absolute;
     width: 1px;
@@ -22,29 +62,12 @@ button, input, select {
     display: block;
     width: 100%;
     margin: 15px 0;
-    padding: 15px; /* Große Klickflächen */
+    padding: 15px;
     font-size: 1.2rem;
     border: 2px solid #000;
     background-color: #f0f0f0;
-    cursor: pointer;
 }
 
 button:focus, input:focus, select:focus {
-    outline: 4px solid #0056b3; /* Extrem deutlicher Fokus-Rahmen */
-}
-
-.voting-buttons {
-    display: flex;
-    gap: 10px;
-}
-
-.voting-buttons button {
-    flex: 1;
-}
-
-#map {
-    height: 400px;
-    width: 100%;
-    margin-bottom: 20px;
-    border: 2px solid #000;
+    outline: 4px solid #0056b3;
 }
