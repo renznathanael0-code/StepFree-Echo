@@ -55,21 +55,21 @@ splash.addEventListener('click', startApp);
 splash.addEventListener('touchstart', startApp);
 
 function startApp() {
-    // Falls die App schon läuft, nichts tun
     if (splash.classList.contains('hidden')) return;
 
-    // Startbildschirm ausblenden, App einblenden
     splash.classList.add('hidden');
     appContent.classList.remove('hidden');
 
-    // Leaflet Karte neu berechnen, da sie im unsichtbaren Zustand geladen wurde
     setTimeout(() => { map.invalidateSize(); }, 200);
 
-    // Begrüßung abspielen
-    speak("Willkommen bei StepFree Echo. Die App ist bereit. Rufe mich jederzeit mit dem Namen Echo.");
+    // 1. Begrüßung vorlesen
+    speak("Willkommen bei Step Free Echo. Die App ist bereit. Rufe mich jederzeit mit dem Namen Echo.");
     
-    // Sprachsteuerung initialisieren
-    initSpeechRecognition();
+    // 2. NEU: Erst nach 3,5 Sekunden (wenn die Stimme fertig ist) das Mikrofon einschalten!
+    setTimeout(() => {
+        initSpeechRecognition();
+        console.log("Mikrofon jetzt scharf geschaltet. Selbstaktivierung verhindert.");
+    }, 3500); 
 }
 
 // SPRACHSTEUERUNG (ECHO AKTIVIERUNGSWORT)
