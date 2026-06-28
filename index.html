@@ -9,6 +9,34 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div id="burger-menu-icon" onclick="toggleMenu()" aria-label="Menü öffnen" role="button" style="position: absolute; top: 20px; left: 20px; z-index: 2000; background: #1e293b; color: white; padding: 12px; border-radius: 8px; cursor: pointer; font-size: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #334155;">
+    ☰
+</div>
+
+<div id="side-menu" style="position: fixed; top: 0; left: -280px; width: 250px; height: 100%; background: #1e293b; z-index: 2001; transition: left 0.3s ease; padding: 20px; box-shadow: 5px 0 15px rgba(0,0,0,0.5); border-right: 1px solid #334155;">
+    <div onclick="toggleMenu()" style="text-align: right; font-size: 24px; color: #ef4444; cursor: pointer; margin-bottom: 20px;">✕</div>
+    <h3 style="color: #00f2fe; margin-top: 0;">StepFree Echo</h3>
+    <ul style="list-style: none; padding: 0; margin: 0;">
+        <li style="margin-bottom: 15px;">
+            <a href="index.html" style="color: white; text-decoration: none; font-size: 1.1em; font-weight: bold;">🗺️ Hauptkarte</a>
+        </li>
+        <li style="margin-bottom: 15px;">
+            <a href="help.html" style="color: white; text-decoration: none; font-size: 1.1em; font-weight: bold;">🔊 Akustische Anleitung</a>
+        </li>
+    </ul>
+</div>
+
+<script>
+function toggleMenu() {
+    const menu = document.getElementById('side-menu');
+    if (menu.style.left === '0px') {
+        menu.style.left = '-280px';
+    } else {
+        menu.style.left = '0px';
+    }
+}
+</script>
+
 
     <button id="splash-screen" role="button" aria-label="Willkommen bei StepFree Echo. Tippe doppelt auf den Bildschirm, um die App und die barrierefreie Sprachsteuerung zu starten.">
         <div class="splash-content">

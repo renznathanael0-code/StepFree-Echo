@@ -201,6 +201,15 @@ function initSpeechRecognition() {
             return;
         }
 
+        // NEU: SPRACH-WEITERLEITUNG ZUR ANLEITUNG (help.html)
+        if ((command.includes('hilfe') || command.includes('anleitung') || command.includes('handbuch')) && formStep === 0) {
+            isAppAwake = true;
+            speak("Öffne das akustische Handbuch.", () => {
+                window.location.href = "help.html";
+            });
+            return;
+        }
+
         // Aufwecken mit "Echo" (Nur wenn kein erzwungener Schritt aktiv ist)
         if (command.includes('echo') && formStep === 0) {
             isAppAwake = true;
@@ -278,13 +287,11 @@ function initSpeechRecognition() {
             if (formStep === 4 && activeCheckObstacleId) {
                 if (command.includes('ja') || command.includes('stimmt') || command.includes('bestätigen') || command === 'existiert') {
                     window.castVote(activeCheckObstacleId, 'up');
-                    // Zustand zurücksetzen
                     resetGuidedForm();
                     speak("Vielen Dank für deine Hilfe. Ich habe eingecheckt und den Punkt für das System bestätigt.");
                     putToSleep();
                 } else if (command.includes('nein') || command.includes('falsch') || command.includes('nicht') || command === 'frei') {
                     window.castVote(activeCheckObstacleId, 'down');
-                    // Zustand zurücksetzen
                     resetGuidedForm();
                     speak("Alles klar, danke. Ich habe registriert, dass der Weg hier frei ist.");
                     putToSleep();
@@ -354,7 +361,7 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
         description: desc,
         latitude: userLatitude,
         longitude: userLongitude,
-        status: "pending", // Standard-Status beim Erstellen
+        status: "pending", 
         votedUp: {},
         votedDown: {}
     };
@@ -416,7 +423,6 @@ function renderObstacles(data, triggerVoiceWarning) {
         };
         const NameReingeschrieben = typeNames[item.type] || 'Hindernis';
 
-        // NEU: Wenn ein Admin-Check gefordert ist UND der User im 20m Radius ist -> Priorität einräumen
         if (item.status === "user_check_requested" && distance <= 20 && formStep === 0) {
             activeUrgentCheck = {
                 id: id,
@@ -453,20 +459,18 @@ function renderObstacles(data, triggerVoiceWarning) {
 
     currentNearbyObstacles = obstaclesNearby;
 
-    // NEU: Wenn ein Admin-Check im 20m Radius getriggert wird, wacht die App VOLLAUTOMATISCH auf!
     if (activeUrgentCheck && !isVoiceSystemDisabled) {
         formStep = 4;
         isAppAwake = true;
         activeCheckObstacleId = activeUrgentCheck.id;
         
         const statusBadge = document.querySelector('.status-dot');
-        if(statusBadge) statusBadge.style.backgroundColor = "#ef4444"; // Alarm-Farbe beim automatischen Aufwachen
+        if(statusBadge) statusBadge.style.backgroundColor = "#ef4444"; 
 
         speak(`Wichtige Überprüfung vor Ort. Du befindest dich direkt an einem gemeldeten Hindernis: ${activeUrgentCheck.text}. Bitte hilf mit und checke ein. Existiert dieses Hindernis aktuell? Antworte mit Ja oder Nein.`);
         return; 
     }
 
-    // Normale Warnung, falls kein akuter Admin-Check im Weg steht
     if (triggerVoiceWarning && obstaclesNearby.length > 0 && !isVoiceSystemDisabled && formStep === 0) {
         let warningText = `Achtung, es gibt ${obstaclesNearby.length} Hindernisse im Umkreis von 50 Metern. `;
         obstaclesNearby.forEach((obs, index) => {
@@ -499,16 +503,13 @@ window.castVote = function(id, type) {
         const finalDown = Object.keys(votedDown).length;
         let finalStatus = item.status || "pending";
 
-        // Automatische Verifizierung ab 3 positiven Votes
         if (finalUp >= 3) {
             finalStatus = "verified";
         }
-        // Automatisches Melden / Alarmieren des Admins ab -3 Netto-Votes
         if ((finalUp - finalDown) <= -3) {
             finalStatus = "flagged_for_review";
         }
 
-        // Alle Werte synchronisiert an Firebase schicken
         fetch(`${BASE_URL}${id}.json`, {
             method: 'PATCH',
             body: JSON.stringify({

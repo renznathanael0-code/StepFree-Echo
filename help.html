@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StepFree Echo - Anleitung</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: #f8fafc; padding: 30px; margin: 0; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #00f2fe; border-bottom: 2px solid #334155; padding-bottom: 10px; }
+        .chapter-card { background: #1e293b; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #334155; }
+        .command-badge { background: #38bdf8; color: #0f172a; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; }
+        .back-btn { background: #ef4444; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1em; }
+        .status-bar { background: #1e293b; padding: 10px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-style: italic; border-left: 4px solid #22c55e; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <h1>🔊 Akustisches Handbuch</h1>
+        <button class="back-btn" onclick="goBack()">Zurück zur App</button>
+    </header>
+
+    <div class="status-bar" id="speech-status">Initialisiere Sprachführung...</div>
+
+    <div class="chapter-card">
+        <h2>1. Kategorien <span class="command-badge">Befehl: "Kategorien"</span></h2>
+        <p>Erklärt die Definitionen von Baustellen, hohen Kanten und fehlenden Blindenleitsystemen.</p>
+    </div>
+
+    <div class="chapter-card">
+        <h2>2. Bewertung &amp; Votes <span class="command-badge">Befehl: "Bewertung"</span></h2>
+        <p>Erklärt das Crowd-Voting-System (Verifizierung ab +3, automatischer Admin-Alarm ab -3 Netto-Votes).</p>
+    </div>
+
+    <div class="chapter-card">
+        <h2>3. Check-In vor Ort <span class="command-badge">Befehl: "Check in"</span></h2>
+        <p>Erklärt, wie die App im 20m-Radius eines Admin-Prüfpunkts vollautomatisch aufwacht.</p>
+    </div>
+</div>
+
+<div id="screenreader-announcer" aria-live="assertive" aria-atomic="true" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;"></div>
+
+<script>
+let recognition = null;
+let shouldListen = true;
+
+// Zentrale Sprachausgabe
+function speak(text, callback) {
+    const announcer = document.getElementById('screenreader-announcer');
+    if (announcer) announcer.textContent = text;
+
+    shouldListen = false;
+    if (recognition) { try { recognition.stop(); } catch(e) {} }
+
+    window.speechSynthesis.cancel(); 
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'de-DE';
+    
+    utterance.onend = () => {
+        shouldListen = true;
+        if (recognition) { try { recognition.start(); } catch(e) {} }
+        if (callback) callback();
+    };
+    window.speechSynthesis.speak(utterance);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        speak("Du hast die Anleitung geöffnet. Sage ein Kapitel, um mehr zu erfahren: 'Kategorien', 'Bewertung' oder 'Check in'. Sag 'Zurück', um die App zu öffnen.", () => {
+            initSpeech();
+        });
+    }, 800);
+});
+
+function initSpeech() {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'de-DE';
+    recognition.continuous = false;
+
+    recognition.onend = () => {
+        if (shouldListen) { try { recognition.start(); } catch(e) {} }
+    };
+
+    recognition.onresult = (event) => {
+        const command = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+        console.log("Anleitung hört:", command);
+        const statusText = document.getElementById('speech-status');
+        if(statusText) statusText.textContent = `Gehört: "${command}"`;
+
+        if (command.includes('zurück') || command.includes('schließen') || command.includes('beenden') || command.includes('app')) {
+            speak("Wechsle zurück zur Karte.", () => { goBack(); });
+            return;
+        }
+
+        if (command.includes('kategorie') || command.includes('kategorien')) {
+            speak("Es gibt drei Kategorien für Hindernisse. " +
+                  "Erstens: Baustelle. Das betrifft Absperrungen, Gruben oder Gerüste, die den Gehweg blockieren. " +
+                  "Zweitens: Bordstein oder hohe Kante. Das sind nicht abgesenkte Bordsteine, die für Rollstühle oder Blindenstöcke schwer passierbar sind. " +
+                  "Drittens: Leitsystem. Das betrifft Gehwege, auf denen die geriffelten Blindenleitlinien fehlen oder durch Außengastronomie blockiert sind. " +
+                  "Möchtest du noch ein Kapitel hören? Nenne 'Bewertung', 'Check in' oder sage 'Zurück'.");
+        } 
+        else if (command.includes('bewertung') || command.includes('votes') || command.includes('stimmen')) {
+            speak("Das Vote-System sichert die Qualität. Jedes gemeldete Hindernis startet im Status Wartend. " +
+                  "Erhält ein Punkt drei positive Stimmen von anderen Nutzern, gilt er als verifiziert. " +
+                  "Erhält ein Punkt drei negative Stimmen mehr als positive, sinkt der Wert auf minus drei. " +
+                  "Dadurch wird sofort ein Alarm beim Admin ausgelöst, damit der Punkt überprüft wird. " +
+                  "Möchtest du noch ein Kapitel hören? Nenne 'Kategorien', 'Check in' oder sage 'Zurück'.");
+        } 
+        else if (command.includes('check in') || command.includes('prüfung') || command.includes('vor ort')) {
+            speak("Der automatische Check-in ist unsere wichtigste Sicherheitsfunktion. " +
+                  "Wenn der Admin einen Punkt überprüfen möchte, schaltet er den Vor-Ort-Check ein. " +
+                  "Sobald sich ein Nutzer diesem Punkt auf unter zwanzig Meter nähert, wacht die App durch das GPS vollautomatisch auf. " +
+                  "Echo fragt dich dann direkt, ob das Hindernis noch existiert. " +
+                  "Du musst nur mit Ja oder Nein antworten, um den Weg für alle anderen zu verifizieren. " +
+                  "Möchtest du noch ein Kapitel hören? Nenne 'Kategorien', 'Bewertung' oder sage 'Zurück'.");
+        } else {
+            speak("Ich habe das Kapitel nicht verstanden. Bitte sage 'Kategorien', 'Bewertung', 'Check in' oder 'Zurück'.");
+        }
+    };
+
+    try { recognition.start(); } catch(e) {}
+    if(document.getElementById('speech-status')) document.getElementById('speech-status').textContent = "Zuhören aktiv...";
+}
+
+function goBack() {
+    window.location.href = "index.html";
+}
+</script>
+</body>
+</html>
