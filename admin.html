@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StepFree Echo - Admin Panel</title>
+    <title>StepFree Echo - Admin Panel mit Karte</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; margin: 0; padding: 30px; color: #f8fafc; }
-        .wrapper { max-width: 1200px; margin: 0 auto; }
+        .wrapper { max-width: 1300px; margin: 0 auto; }
         .login-card { background: #1e293b; padding: 40px; border-radius: 12px; max-width: 400px; margin: 150px auto; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #334155; }
         input[type="password"] { width: 90%; padding: 12px; margin: 15px 0; background: #0f172a; border: 1px solid #475569; border-radius: 6px; color: #fff; text-align: center; font-size: 1.1em; }
         button { padding: 10px 18px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
@@ -15,26 +16,33 @@
         .btn-verify { background: #10b981; color: white; }
         .btn-check { background: #f59e0b; color: white; }
         .btn-delete { background: #ef4444; color: white; }
-        table { width: 100%; border-collapse: collapse; background: #1e293b; margin-top: 25px; border-radius: 8px; overflow: hidden; }
+        
+        /* Karten-Layout */
+        #admin-map { height: 350px; width: 100%; border-radius: 8px; margin-bottom: 25px; border: 1px solid #334155; }
+        
+        table { width: 100%; border-collapse: collapse; background: #1e293b; margin-top: 10px; border-radius: 8px; overflow: hidden; }
         th, td { padding: 15px; text-align: left; border-bottom: 1px solid #334155; }
         th { background-color: #334155; color: #38bdf8; }
-        .alarm-row { background-color: #451a03 !important; border-left: 6px solid #ef4444; animation: pulse 2s infinite; }
+        tr.clickable { cursor: pointer; }
+        tr.clickable:hover { background-color: #1e293b; filter: brightness(1.15); }
+        
+        .alarm-row { background-color: #451a03 !important; border-left: 6px solid #ef4444; }
         .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; }
         .badge-verified { background: #064e3b; color: #34d399; }
         .badge-pending { background: #78350f; color: #fbbf24; }
         .badge-review { background: #7f1d1d; color: #f87171; border: 1px solid #ef4444; }
         .badge-requested { background: #1e3a8a; color: #60a5fa; }
         .alert-banner { background: #7f1d1d; border: 1px solid #ef4444; color: #fca5a5; padding: 15px; border-radius: 8px; margin-bottom: 25px; font-weight: bold; display: none; }
-        @keyframes pulse { 0% { opacity: 0.9; } 50% { opacity: 1; } 100% { opacity: 0.9; } }
+        .gmaps-link { color: #38bdf8; text-decoration: none; font-weight: bold; }
+        .gmaps-link:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
 
 <div id="login-container" class="login-card">
     <h2>🔑 Admin Zugang</h2>
-    <p style="color: #94a3b8;">Bitte gib das Passwort ein, um fortzufahren.</p>
     <input type="password" id="password-field" placeholder="••••••••" onkeydown="if(event.key === 'Enter') login()">
-    <br>
+    <br><br>
     <button class="btn-primary" onclick="login()">Dashboard öffnen</button>
 </div>
 
@@ -42,24 +50,26 @@
     <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <div>
             <h1 style="margin: 0; color: #38bdf8;">StepFree Echo — Administration</h1>
-            <p style="color: #94a3b8; margin: 5px 0 0 0;">Qualitätsmanagement und Crowdsourcing-Überwachung</p>
+            <p style="color: #94a3b8; margin: 5px 0 0 0;">Klicke auf eine Tabellenzeile, um den Punkt auf der Karte anzuzeigen.</p>
         </div>
         <button class="btn-delete" onclick="location.reload()">Ausloggen</button>
     </header>
 
     <div id="alarm-banner" class="alert-banner">
-        🚨 ALARM: Mindestens ein Hindernis hat eine kritische Anzahl negativer Bewertungen erhalten (Score &le; -3) und erfordert sofortige Prüfung!
+        🚨 ALARM: Kritische Einträge erfordern Prüfung (Score &le; -3)!
     </div>
+
+    <div id="admin-map"></div>
 
     <table>
         <thead>
             <tr>
                 <th>Kategorie</th>
                 <th>Beschreibung</th>
-                <th>Position (Lat / Lon)</th>
-                <th>Bewertung Score</th>
-                <th>Aktueller Status</th>
-                <th>Management Aktionen</th>
+                <th>Google Maps</th>
+                <th>Score</th>
+                <th>Status</th>
+                <th>Aktionen</th>
             </tr>
         </thead>
         <tbody id="admin-table-content">
@@ -67,17 +77,27 @@
     </table>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const DB_URL = "https://stepfree-echo-default-rtdb.europe-west1.firebasedatabase.app/obstacles.json";
 const BASE_URL = "https://stepfree-echo-default-rtdb.europe-west1.firebasedatabase.app/obstacles/";
 
+let adminMap;
+let markerGroup;
+
 function login() {
     const enteredPass = document.getElementById('password-field').value;
-    if (enteredPass === "echo2026") { // Setze hier dein Passwort fest
+    if (enteredPass === "echo2026") {
         document.getElementById('login-container').style.display = 'none';
         document.getElementById('dashboard-container').style.display = 'block';
+        
+        // Karte initialisieren
+        adminMap = L.map('admin-map').setView([51.1657, 10.4515], 6); // Deutschland-Zentriert
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(adminMap);
+        markerGroup = L.layerGroup().addTo(adminMap);
+
         fetchAdminData();
-        setInterval(fetchAdminData, 5000); // Live-Updates alle 5 Sekunden
+        setInterval(fetchAdminData, 5000); 
     } else {
         alert("Ungültiges Passwort!");
     }
@@ -89,7 +109,9 @@ function fetchAdminData() {
     .then(data => {
         const tbody = document.getElementById('admin-table-content');
         tbody.innerHTML = "";
+        markerGroup.clearLayers();
         let alarmTriggered = false;
+        let bounds = [];
 
         if (!data) return;
 
@@ -99,27 +121,53 @@ function fetchAdminData() {
             const down = item.votedDown ? Object.keys(item.votedDown).length : 0;
             const score = up - down;
 
-            let isAlarm = false;
-            if (item.status === "flagged_for_review" || score <= -3) {
-                isAlarm = true;
-                alarmTriggered = true;
-            }
+            let isAlarm = (item.status === "flagged_for_review" || score <= -3);
+            if (isAlarm) alarmTriggered = true;
 
             const categories = { 'baustelle': 'Baustelle', 'hohe-kante': 'Hohe Kante', 'kein-leitsystem': 'Fehlendes Leitsystem' };
             const statusLabels = { 
                 'pending': '<span class="status-badge badge-pending">Wartend</span>',
                 'verified': '<span class="status-badge badge-verified">Verifiziert</span>',
                 'flagged_for_review': '<span class="status-badge badge-review">🚨 Alarm</span>',
-                'user_check_requested': '<span class="status-badge badge-requested">User-Check läuft</span>'
+                'user_check_requested': '<span class="status-badge badge-requested">User-Check</span>'
             };
 
+            // 1. Google Maps Navigations-Link generieren
+            const mapsLink = `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`;
+
+            // 2. Marker auf Karte setzen
+            let markerColor = '#f59e0b'; // Orange für Standard
+            if (item.status === 'verified') markerColor = '#10b981'; // Grün
+            if (isAlarm) markerColor = '#ef4444'; // Rot
+
+            const marker = L.circleMarker([item.latitude, item.longitude], {
+                radius: 10,
+                fillColor: markerColor,
+                color: '#fff',
+                weight: 2,
+                fillOpacity: 0.8
+            }).bindPopup(`<b>${categories[item.type]}</b><br>${item.description || ''}<br><a href="${mapsLink}" target="_blank" style="color:black;font-weight:bold;">In Google Maps öffnen</a>`);
+            
+            markerGroup.addLayer(marker);
+            bounds.push([item.latitude, item.longitude]);
+
+            // 3. Tabellenzeile bauen (mit Klick-Event zum Zentrieren)
             const tr = document.createElement('tr');
-            if (isAlarm) tr.className = "alarm-row";
+            tr.className = "clickable" + (isAlarm ? " alarm-row" : "");
+            
+            // Ermöglicht das Springen zum Punkt bei Klick auf die Zeile
+            tr.onclick = function(e) {
+                // Verhindert das Auslösen bei Klick auf Buttons/Links
+                if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A') {
+                    adminMap.setView([item.latitude, item.longitude], 17);
+                    marker.openPopup();
+                }
+            };
 
             tr.innerHTML = `
                 <td><strong>${categories[item.type] || 'Hindernis'}</strong></td>
                 <td>${item.description || '<em style="color:#64748b;">Keine Beschreibung</em>'}</td>
-                <td style="font-family: monospace; font-size: 0.9em;">${item.latitude.toFixed(5)}, ${item.longitude.toFixed(5)}</td>
+                <td><a class="gmaps-link" href="${mapsLink}" target="_blank">🗺️ Maps öffnen</a></td>
                 <td><span style="color:#34d399;">+${up}</span> / <span style="color:#f87171;">-${down}</span> (<strong>${score}</strong>)</td>
                 <td>${statusLabels[item.status] || statusLabels['pending']}</td>
                 <td>
@@ -131,15 +179,17 @@ function fetchAdminData() {
             tbody.appendChild(tr);
         });
 
+        // Beim ersten Laden die Karte so zoomen, dass man alle Marker sieht
+        if (bounds.length > 0 && adminMap.getZoom() === 6) {
+            adminMap.fitBounds(bounds);
+        }
+
         document.getElementById('alarm-banner').style.display = alarmTriggered ? 'block' : 'none';
     });
 }
 
 function changeStatus(id, status) {
-    fetch(`${BASE_URL}${id}.json`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: status })
-    }).then(() => fetchAdminData());
+    fetch(`${BASE_URL}${id}.json`, { method: 'PATCH', body: JSON.stringify({ status: status }) }).then(() => fetchAdminData());
 }
 
 function removeObstacle(id) {
