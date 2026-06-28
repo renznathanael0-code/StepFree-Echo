@@ -105,19 +105,27 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
     });
 });
 
-// 5. Daten aus Firebase laden & Marker auf Karte zeichnen
+// 5. Daten aus Firebase laden & Marker auf Karte zeichnen (ABGESICHERT)
 function loadObstacles() {
     fetch(DB_URL)
     .then(res => res.json())
     .then(data => {
         const listContainer = document.getElementById('obstacles-list');
-        listContainer.innerHTML = "";
+        if (listContainer) listContainer.innerHTML = "";
+        
         markerGroup.clearLayers(); // Alte Marker von der Karte entfernen
         
         if (!data) return;
 
         Object.keys(data).forEach(id => {
             const item = data[id];
+
+            // SICHERHEITS-CHECK: Hat dieser Eintrag gültige Koordinaten?
+            if (!item || item.latitude === undefined || item.longitude === undefined || isNaN(item.latitude) || isNaN(item.longitude)) {
+                console.warn(`Eintrag ${id} wurde übersprungen, da GPS-Daten fehlen oder ungültig sind.`);
+                return; // Überspringt diesen fehlerhaften Eintrag und macht mit dem nächsten weiter
+            }
+
             const upVotes = item.votedUp ? Object.keys(item.votedUp).length : 0;
             const downVotes = item.votedDown ? Object.keys(item.votedDown).length : 0;
 
@@ -126,34 +134,35 @@ function loadObstacles() {
                 'hohe-kante': 'Hohe Bordsteinkante',
                 'kein-leitsystem': 'Fehlendes Blindenleitsystem'
             };
-            const NameReingeschrieben = typeNames[item.type] || item.type;
+            const NameReingeschrieben = typeNames[item.type] || item.type || 'Unbekanntes Hindernis';
 
             // --- BARRIEREFREIER LEAFLET MARKER ---
-            // 'keyboard: true' macht den Marker per Tabulator-Taste anwählbar
             const marker = L.marker([item.latitude, item.longitude], {
                 keyboard: true,
-                title: `${NameReingeschrieben}: ${item.description}. Stimmen dafür: ${upVotes}`,
-                alt: `${NameReingeschrieben}: ${item.description}`
+                title: `${NameReingeschrieben}: ${item.description || ''}. Stimmen dafür: ${upVotes}`,
+                alt: `${NameReingeschrieben}: ${item.description || ''}`
             });
 
-            // Text, der beim Anklicken/Auswählen des Markers angezeigt und vorgelesen wird
             const popupText = `
-                <b>${NameReingeschrieben}</b><br>${item.description}<br>
+                <b>${NameReingeschrieben}</b><br>${item.description || 'Keine Beschreibung'}<br>
                 Empfohlen: ${upVotes} | Nicht da: ${downVotes}
             `;
             marker.bindPopup(popupText);
             markerGroup.addLayer(marker);
 
             // Eintrag für die Textliste unter der Karte
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <p><strong>${NameReingeschrieben}</strong>: ${item.description}</p>
-                <button onclick="castVote('${id}', 'up')" aria-label="${NameReingeschrieben} bestätigen. Aktuell ${upVotes}">Stimmt (${upVotes})</button>
-                <button onclick="castVote('${id}', 'down')" aria-label="${NameReingeschrieben} ablehnen. Aktuell ${downVotes}">Stimmt nicht (${downVotes})</button>
-            `;
-            listContainer.appendChild(li);
+            if (listContainer) {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <p><strong>${NameReingeschrieben}</strong>: ${item.description || 'Keine Beschreibung'}</p>
+                    <button onclick="castVote('${id}', 'up')" aria-label="${NameReingeschrieben} bestätigen. Aktuell ${upVotes}">Stimmt (${upVotes})</button>
+                    <button onclick="castVote('${id}', 'down')" aria-label="${NameReingeschrieben} ablehnen. Aktuell ${downVotes}">Stimmt nicht (${downVotes})</button>
+                `;
+                listContainer.appendChild(li);
+            }
         });
-    });
+    })
+    .catch(err => console.error("Fehler beim Laden der Daten:", err));
 }
 
 // 6. Abstimmen

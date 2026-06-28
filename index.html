@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Barrierefreie Hindernis-Karte</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,6 +17,10 @@
     </header>
 
     <main>
+        <section id="map-container" aria-label="Interaktive Karte">
+            <div id="map"></div>
+        </section>
+
         <section id="obstacle-form-section" aria-labelledby="form-title">
             <h2 id="form-title">Neues Hindernis melden</h2>
             <form id="obstacle-form">
@@ -42,7 +45,6 @@
     </main>
 
     <div id="screenreader-announcer" class="sr-only" aria-live="assertive"></div>
-
 
     <script src="script.js"></script>
 </body>
