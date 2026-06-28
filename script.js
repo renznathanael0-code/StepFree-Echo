@@ -12,8 +12,9 @@ let isAppAwake = false;
 let awakeTimeout = null;
 let recognition = null;
 let shouldListen = true;
-let isVoiceSystemDisabled = false; // Schalter, um das System komplett abzuschalten
-let currentNearbyObstacles = [];   // Speicher für das "Umgebung"-Sprachkommando
+let isVoiceSystemDisabled = false; 
+let currentNearbyObstacles = [];   
+let lastFetchedData = null; // NEU: Hier merken wir uns die geladenen Hindernisse
 
 // ==========================================
 // 1. KARTEN-INITIALISIERUNG & STANDORT
@@ -25,21 +26,24 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let markerGroup = L.layerGroup().addTo(map);
 let userMarker = null;
-let temporaryClickMarker = null; // Temporärer Marker für den Kartenklick
+let temporaryClickMarker = null; 
 
-// GPS Standortermittlung
+// GPS Standortermittlung (DYNAMISCHE NEUBERECHNUNG BEI GEH-BEWEGUNG)
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition((position) => {
-        // Nur updaten, wenn der Nutzer NICHT gerade manuell auf die Karte geklickt hat
-        if (!temporaryClickMarker) {
-            userLatitude = position.coords.latitude;
-            userLongitude = position.coords.longitude;
-        }
+        userLatitude = position.coords.latitude;
+        userLongitude = position.coords.longitude;
+
         if (!userMarker) {
             map.setView([userLatitude, userLongitude], 16);
             userMarker = L.circle([userLatitude, userLongitude], { color: '#00f2fe', fillColor: '#00f2fe', fillOpacity: 0.4, radius: 15 }).addTo(map);
         } else {
-            userMarker.setLatLng([position.coords.latitude, position.coords.longitude]);
+            userMarker.setLatLng([userLatitude, userLongitude]);
+        }
+
+        // FIX: Sobald das echte GPS da ist oder sich verändert, berechnen wir die Entfernungen sofort neu!
+        if (lastFetchedData) {
+            renderObstacles(lastFetchedData, false); // false = kein nerviges automatisches Reden bei jedem GPS-Zucken
         }
     }, (err) => console.log("GPS verzögert..."), { enableHighAccuracy: true });
 }
@@ -53,7 +57,6 @@ map.on('click', function(e) {
         map.removeLayer(temporaryClickMarker);
     }
 
-    // Setze einen verschiebbaren Marker an die geklickte Stelle
     temporaryClickMarker = L.marker([userLatitude, userLongitude], {
         draggable: true
     }).addTo(map).bindPopup("<b>Gewählter Ort für neues Hindernis</b>").openPopup();
@@ -69,16 +72,11 @@ map.on('click', function(e) {
     speak("Ort auf der Karte markiert. Bitte wähle die Art des Hindernisses.");
 });
 
-// Hilfsfunktion: Distanzberechnung
+// Hilfsfunktion: Leaflet-eigene, hochpräzise Distanzberechnung
 function getDistanceInMeters(lat1, lon1, lat2, lon2) {
-    const R = 6371000;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    const point1 = L.latLng(lat1, lon1);
+    const point2 = L.latLng(lat2, lon2);
+    return point1.distanceTo(point2); // Berechnet die exakte Distanz in Metern auf der Erdkugel
 }
 
 // ==========================================
@@ -88,7 +86,6 @@ function speak(text, callback) {
     const announcer = document.getElementById('screenreader-announcer');
     if (announcer) announcer.textContent = text;
 
-    // Schlaf-Countdown stoppen, damit er nicht dazwischenredet
     clearTimeout(awakeTimeout);
 
     shouldListen = false;
@@ -105,7 +102,6 @@ function speak(text, callback) {
             try { recognition.start(); } catch(e) {} 
         }
 
-        // Timer erst nach Beenden der Sprachausgabe neu starten
         if (isAppAwake && !isVoiceSystemDisabled) {
             clearTimeout(awakeTimeout);
             awakeTimeout = setTimeout(putToSleep, 15000);
@@ -143,7 +139,7 @@ function startApp() {
 }
 
 // ==========================================
-// 4. SPRACHSTEUERUNG (INKL. UMGEBUNG-BEFEHL)
+// 4. SPRACHSTEUERUNG
 // ==========================================
 function initSpeechRecognition() {
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
@@ -168,7 +164,6 @@ function initSpeechRecognition() {
         const statusBadge = document.querySelector('.status-dot');
         const statusText = document.getElementById('speech-status');
 
-        // Sprachsteuerung permanent ausschalten
         if (command.includes('ausschalten') || command.includes('deaktivieren')) {
             isVoiceSystemDisabled = true;
             isAppAwake = false;
@@ -179,7 +174,6 @@ function initSpeechRecognition() {
             return;
         }
 
-        // Aufwecken mit "Echo"
         if (command.includes('echo')) {
             isAppAwake = true;
             if(statusBadge) statusBadge.style.backgroundColor = "#00f2fe";
@@ -189,7 +183,6 @@ function initSpeechRecognition() {
         }
 
         if (isAppAwake) {
-            // NEUER BEFEHL: UMGEBUNG ABFRAGEN
             if (command.includes('umgebung') || command.includes('hindernisse')) {
                 if (currentNearbyObstacles.length > 0) {
                     let text = `Es gibt ${currentNearbyObstacles.length} Hindernisse in deiner Nähe. `;
@@ -201,7 +194,6 @@ function initSpeechRecognition() {
                 return;
             }
 
-            // KATEGORIEN WÄHLEN
             if (command.includes('baustelle')) {
                 document.getElementById('obstacle-type').value = 'baustelle';
                 speak("Kategorie Baustelle eingestellt.");
@@ -213,7 +205,6 @@ function initSpeechRecognition() {
                 speak("Kategorie Fehlendes Blindenleitsystem eingestellt.");
             } 
             
-            // BESCHREIBUNG HINZUFÜGEN
             else if (command.includes('beschreibung')) {
                 const textAfterCommand = command.split('beschreibung')[1].trim();
                 if (textAfterCommand) {
@@ -222,7 +213,6 @@ function initSpeechRecognition() {
                 }
             } 
             
-            // SPEICHERN
             else if (command.includes('speichern') || command.includes('senden')) {
                 document.getElementById('obstacle-form').dispatchEvent(new Event('submit'));
                 isAppAwake = false;
@@ -286,72 +276,78 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
 });
 
 // ==========================================
-// 6. DATEN AUS DATENBANK LADEN
+// 6. DATEN AUS DATENBANK LADEN & DARSTELLEN
 // ==========================================
 function loadObstacles() {
     fetch(DB_URL)
     .then(res => res.json())
     .then(data => {
-        const listContainer = document.getElementById('obstacles-list');
-        if (listContainer) listContainer.innerHTML = "";
-        markerGroup.clearLayers();
-        
-        if (!data) {
-            currentNearbyObstacles = [];
-            return;
-        }
-
-        let obstaclesNearby = [];
-
-        Object.keys(data).forEach(id => {
-            const item = data[id];
-            if (!item || item.latitude === undefined || item.longitude === undefined) return;
-
-            const distance = Math.round(getDistanceInMeters(userLatitude, userLongitude, item.latitude, item.longitude));
-            const upVotes = item.votedUp ? Object.keys(item.votedUp).length : 0;
-            const downVotes = item.votedDown ? Object.keys(item.votedDown).length : 0;
-
-            const typeNames = {
-                'baustelle': 'Baustelle',
-                'hohe-kante': 'Hohe Bordsteinkante',
-                'kein-leitsystem': 'Fehlendes Blindenleitsystem'
-            };
-            const NameReingeschrieben = typeNames[item.type] || 'Hindernis';
-
-            if (distance <= 50) {
-                obstaclesNearby.push(`${NameReingeschrieben} in ${distance} Metern Entfernung. ${item.description || ''}`);
-            }
-
-            const marker = L.marker([item.latitude, item.longitude], { 
-                keyboard: true,
-                title: `${NameReingeschrieben}. ${distance} Meter entfernt.`
-            });
-            marker.bindPopup(`<b>${NameReingeschrieben}</b> (${distance}m)<br>${item.description || ''}`);
-            markerGroup.addLayer(marker);
-
-            if (listContainer) {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <p><strong>${NameReingeschrieben}</strong> (${distance}m entfernt): ${item.description || ''}</p>
-                    <div class="vote-buttons">
-                        <button class="btn-vote" onclick="castVote('${id}', 'up')" aria-label="Stimmt">Stimmt (${upVotes})</button>
-                        <button class="btn-vote" onclick="castVote('${id}', 'down')" aria-label="Stimmt nicht">Stimmt nicht (${downVotes})</button>
-                    </div>
-                `;
-                listContainer.appendChild(li);
-            }
-        });
-
-        // Die Liste global sichern, damit "Echo, Umgebung!" klappt
-        currentNearbyObstacles = obstaclesNearby;
-
-        // Automatischer Radar beim ersten Laden oder Positionswechsel
-        if (obstaclesNearby.length > 0 && !isVoiceSystemDisabled) {
-            let warningText = `Achtung, es gibt ${obstaclesNearby.length} Hindernisse im Umkreis von 50 Metern. `;
-            warningText += obstaclesNearby.join(". ");
-            speak(warningText);
-        }
+        lastFetchedData = data; // Daten global merken
+        renderObstacles(data, true); // true = beim allerersten Laden darf die App sprechen
     }).catch(e => console.log(e));
+}
+
+// Verarbeitet die Daten visuell auf der Liste und Karte
+function renderObstacles(data, triggerVoiceWarning) {
+    const listContainer = document.getElementById('obstacles-list');
+    if (listContainer) listContainer.innerHTML = "";
+    markerGroup.clearLayers();
+    
+    if (!data) {
+        currentNearbyObstacles = [];
+        return;
+    }
+
+    let obstaclesNearby = [];
+
+    Object.keys(data).forEach(id => {
+        const item = data[id];
+        if (!item || item.latitude === undefined || item.longitude === undefined) return;
+
+        // Nutzt jetzt die korrekte, dynamische Distanz
+        const distance = Math.round(getDistanceInMeters(userLatitude, userLongitude, item.latitude, item.longitude));
+        const upVotes = item.votedUp ? Object.keys(item.votedUp).length : 0;
+        const downVotes = item.votedDown ? Object.keys(item.votedDown).length : 0;
+
+        const typeNames = {
+            'baustelle': 'Baustelle',
+            'hohe-kante': 'Hohe Bordsteinkante',
+            'kein-leitsystem': 'Fehlendes Blindenleitsystem'
+        };
+        const NameReingeschrieben = typeNames[item.type] || 'Hindernis';
+
+        if (distance <= 50) {
+            obstaclesNearby.push(`${NameReingeschrieben} in ${distance} Metern Entfernung. ${item.description || ''}`);
+        }
+
+        const marker = L.marker([item.latitude, item.longitude], { 
+            keyboard: true,
+            title: `${NameReingeschrieben}. ${distance} Meter entfernt.`
+        });
+        marker.bindPopup(`<b>${NameReingeschrieben}</b> (${distance}m)<br>${item.description || ''}`);
+        markerGroup.addLayer(marker);
+
+        if (listContainer) {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <p><strong>${NameReingeschrieben}</strong> (${distance}m entfernt): ${item.description || ''}</p>
+                <div class="vote-buttons">
+                    <button class="btn-vote" onclick="castVote('${id}', 'up')" aria-label="Stimmt">Stimmt (${upVotes})</button>
+                    <button class="btn-vote" onclick="castVote('${id}', 'down')" aria-label="Stimmt nicht">Stimmt nicht (${downVotes})</button>
+                </div>
+            `;
+            listContainer.appendChild(li);
+        }
+    });
+
+    currentNearbyObstacles = obstaclesNearby;
+
+    // Nur sprechen, wenn explizit erwünscht (z.B. nicht sekündlich bei GPS-Updates)
+    if (triggerVoiceWarning && obstaclesNearby.length > 0 && !isVoiceSystemDisabled) {
+        let warningText = `Achtung, es gibt ${obstaclesNearby.length} Hindernisse im Umkreis von 50 Metern. `;
+        warningText += obstaclesNearby.join(". ");
+        speak(warningText);
+    }
 }
 
 // ==========================================
