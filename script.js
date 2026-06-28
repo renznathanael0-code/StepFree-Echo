@@ -169,6 +169,7 @@ function initSpeechRecognition() {
         const statusBadge = document.querySelector('.status-dot');
         const statusText = document.getElementById('speech-status');
 
+        // Globaler Abbruch-Befehl
         if (command.includes('abbrechen') || command.includes('stop')) {
             resetGuidedForm();
             speak("Eingabe abgebrochen.");
@@ -176,6 +177,15 @@ function initSpeechRecognition() {
             return;
         }
 
+        // NEU: Manueller Standby / Schlaf-Befehl
+        if (command.includes('geh schlafen') || command === 'schlafen' || command.includes('gute nacht')) {
+            resetGuidedForm();
+            speak("Alles klar, ich lege mich schlafen.");
+            putToSleep();
+            return;
+        }
+
+        // Sprachsteuerung permanent ausschalten
         if (command.includes('ausschalten') || command.includes('deaktivieren')) {
             isVoiceSystemDisabled = true;
             isAppAwake = false;
@@ -186,6 +196,7 @@ function initSpeechRecognition() {
             return;
         }
 
+        // Aufwecken mit "Echo"
         if (command.includes('echo') && formStep === 0) {
             isAppAwake = true;
             if(statusBadge) statusBadge.style.backgroundColor = "#00f2fe";
@@ -223,11 +234,10 @@ function initSpeechRecognition() {
                 return;
             }
 
-            // SCHRITT 2: BESCHREIBUNG ERFASSEN (JETZT OPTIONAL)
+            // SCHRITT 2: BESCHREIBUNG ERFASSEN (OPTIONAL)
             if (formStep === 2) {
-                // Prüfen, ob der Nutzer die Beschreibung überspringen möchte
                 if (command === 'überspringen' || command === 'weiter' || command === 'keine' || command === 'nein' || command.includes('überspringen')) {
-                    tempDesc = ""; // Keine Beschreibung eingetragen
+                    tempDesc = ""; 
                     document.getElementById('obstacle-desc').value = "";
                 } else {
                     tempDesc = event.results[event.results.length - 1][0].transcript;
