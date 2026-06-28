@@ -6,152 +6,169 @@ if (!localStorage.getItem('user_voice_id')) {
 }
 const userId = localStorage.getItem('user_voice_id');
 
-let userLatitude = 51.1657;
+let userLatitude = 51.1657; 
 let userLongitude = 10.4515;
-let hasRealGPS = false;
 let isAppAwake = false;
 let awakeTimeout = null;
+let recognition = null;
+let shouldListen = true;
 
-// Karte initialisieren
+// 1. KARTEN-INITIALISIERUNG
 const map = L.map('map').setView([userLatitude, userLongitude], 6);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap'
 }).addTo(map);
 
-let userMarker = null;
 let markerGroup = L.layerGroup().addTo(map);
+let userMarker = null;
 
 // GPS Standortermittlung
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition((position) => {
         userLatitude = position.coords.latitude;
         userLongitude = position.coords.longitude;
-        hasRealGPS = true;
-
-        if (userMarker === null) {
+        if (!userMarker) {
             map.setView([userLatitude, userLongitude], 16);
-            userMarker = L.circle([userLatitude, userLongitude], { color: 'blue', radius: 10 }).addTo(map);
+            userMarker = L.circle([userLatitude, userLongitude], { color: '#00f2fe', fillColor: '#00f2fe', fillOpacity: 0.4, radius: 15 }).addTo(map);
         } else {
             userMarker.setLatLng([userLatitude, userLongitude]);
         }
-    }, (err) => console.log("GPS sucht..."), { enableHighAccuracy: true });
+    }, (err) => console.log("GPS verzögert, nutze Standard-Koordinate."), { enableHighAccuracy: true });
 }
 
-// 1. Die speak-Funktion leicht erweitern, damit sie uns bescheid gibt, wenn sie fertig ist
+// Klick-Funktion auf der Karte für Angehörige / Sehende
+map.on('click', function(e) {
+    userLatitude = e.latlng.lat;
+    userLongitude = e.latlng.lng;
+    document.getElementById('obstacle-type').focus();
+    speak("Karte angeklickt. Position für neues Hindernis gesetzt. Bitte wähle die Art des Hindernisses.");
+});
+
+// Distanzberechnung in Metern
+function getDistanceInMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+// 2. RADIKALE SPRACHAUSGABE (Mikrofon wird währenddessen deaktiviert)
 function speak(text, callback) {
     const announcer = document.getElementById('screenreader-announcer');
     if (announcer) announcer.textContent = text;
-    
+
+    shouldListen = false;
+    if (recognition) { try { recognition.stop(); } catch(e) {} }
+
     window.speechSynthesis.cancel(); 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'de-DE';
     
-    // Wenn ein Callback (eine Folge-Aktion) mitgegeben wurde, führe es am Ende aus
-    if (callback) {
-        utterance.onend = () => {
-            callback();
-        };
-    }
-    
+    utterance.onend = () => {
+        shouldListen = true;
+        if (recognition) { try { recognition.start(); } catch(e) {} }
+        if (callback) callback();
+    };
     window.speechSynthesis.speak(utterance);
 }
 
-// 2. Die startApp-Funktion steuert das jetzt perfekt
+// 3. BARRIEREFREIER STARTPROZESS
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        speak("Willkommen bei Step Free Echo. Tippe doppelt auf den Bildschirm, um die App zu starten.");
+    }, 1000);
+});
+
+const splash = document.getElementById('splash-screen');
+const appContent = document.getElementById('app-content');
+
+splash.addEventListener('click', startApp);
+
 function startApp() {
     if (splash.classList.contains('hidden')) return;
-
     splash.classList.add('hidden');
     appContent.classList.remove('hidden');
-
+    
     setTimeout(() => { map.invalidateSize(); }, 200);
 
-    // Wir übergeben initSpeechRecognition als "Befehl für danach"
-    speak(
-        "Willkommen bei Step Free Echo. Die App ist bereit. Rufe mich jederzeit mit dem Namen Echo.", 
-        () => {
-            // Dieser Block wird ERST ausgeführt, wenn der Punkt hinter "Echo" gesprochen wurde!
-            initSpeechRecognition();
-            console.log("Stimme fertig. Mikrofon ist jetzt absolut sicher aktiv.");
-        }
-    );
+    speak("App gestartet. Ich höre ab jetzt im Hintergrund zu. Rufe mich mit dem Namen Echo.", () => {
+        initSpeechRecognition();
+    });
 }
-// SPRACHSTEUERUNG (ECHO AKTIVIERUNGSWORT)
+
+// 4. ABSOLUT FEHLERFREIE SPRACHSTEUERUNG (Aktivierungswort: Echo)
 function initSpeechRecognition() {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'de-DE';
-        recognition.continuous = true;
-        recognition.interimResults = false;
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'de-DE';
+    recognition.continuous = false; 
+    recognition.interimResults = false;
 
-        recognition.start();
+    recognition.onend = () => {
+        if (shouldListen) { try { recognition.start(); } catch(e) {} }
+    };
 
-        recognition.onend = () => {
-            recognition.start(); // Endlos-Modus
-        };
+    recognition.onresult = (event) => {
+        const command = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+        console.log("Gehört:", command);
+        const statusBadge = document.querySelector('.status-dot');
+        const statusText = document.getElementById('speech-status');
 
-        recognition.onresult = (event) => {
-            const command = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
-            console.log("Gehört:", command);
-            const statusText = document.getElementById('speech-status');
+        if (command.includes('echo')) {
+            isAppAwake = true;
+            statusBadge.style.backgroundColor = "#00f2fe";
+            statusText.textContent = "Zuhören aktiv...";
+            speak("Ja? Ich höre.");
+            clearTimeout(awakeTimeout);
+            awakeTimeout = setTimeout(putToSleep, 15000); 
+            return;
+        }
 
-            // 1. Aufwecken mit "Echo"
-            if (command.includes('echo')) {
-                isAppAwake = true;
-                statusText.textContent = "Zuhören aktiv...";
-                speak("Ja? Ich höre.");
-                
-                clearTimeout(awakeTimeout);
-                awakeTimeout = setTimeout(putToSleep, 12000); // 12 Sekunden Zeitfenster
-                return;
-            }
+        if (isAppAwake) {
+            clearTimeout(awakeTimeout);
+            awakeTimeout = setTimeout(putToSleep, 15000);
 
-            // 2. Befehle verarbeiten (Nur wenn wach)
-            if (isAppAwake) {
-                // Timer bei jedem gesprochenen Wort erneuern
-                clearTimeout(awakeTimeout);
-                awakeTimeout = setTimeout(putToSleep, 12000);
-
-                if (command.includes('baustelle')) {
-                    document.getElementById('obstacle-type').value = 'baustelle';
-                    speak("Kategorie Baustelle ausgewählt.");
-                } else if (command.includes('bordstein') || command.includes('kante')) {
-                    document.getElementById('obstacle-type').value = 'hohe-kante';
-                    speak("Kategorie Hohe Bordsteinkante ausgewählt.");
-                } else if (command.includes('leitsystem')) {
-                    document.getElementById('obstacle-type').value = 'kein-leitsystem';
-                    speak("Kategorie Fehlendes Blindenleitsystem ausgewählt.");
-                } 
-                
-                // Beschreibung via Sprache ("Beschreibung [Dein Text]")
-                else if (command.includes('beschreibung')) {
-                    const textAfterCommand = command.split('beschreibung')[1].trim();
-                    if (textAfterCommand) {
-                        document.getElementById('obstacle-desc').value = textAfterCommand;
-                        speak(`Beschreibung festgelegt auf: ${textAfterCommand}`);
-                    } else {
-                        speak("Bitte nenne eine Beschreibung.");
-                    }
-                } 
-                
-                // Speichern
-                else if (command.includes('speichern') || command.includes('senden')) {
-                    document.getElementById('submit-btn').click();
-                    putToSleep();
+            if (command.includes('baustelle')) {
+                document.getElementById('obstacle-type').value = 'baustelle';
+                speak("Kategorie Baustelle eingestellt.");
+            } else if (command.includes('bordstein') || command.includes('kante')) {
+                document.getElementById('obstacle-type').value = 'hohe-kante';
+                speak("Kategorie Hohe Bordsteinkante eingestellt.");
+            } else if (command.includes('leitsystem')) {
+                document.getElementById('obstacle-type').value = 'kein-leitsystem';
+                speak("Kategorie Fehlendes Blindenleitsystem eingestellt.");
+            } 
+            else if (command.includes('beschreibung')) {
+                const textAfterCommand = command.split('beschreibung')[1].trim();
+                if (textAfterCommand) {
+                    document.getElementById('obstacle-desc').value = textAfterCommand;
+                    speak(`Beschreibung eingetragen: ${textAfterCommand}`);
                 }
+            } 
+            else if (command.includes('speichern') || command.includes('senden')) {
+                document.getElementById('obstacle-form').dispatchEvent(new Event('submit'));
+                putToSleep();
             }
-        };
-    }
+        }
+    };
+
+    try { recognition.start(); } catch(e) {}
 }
 
 function putToSleep() {
     isAppAwake = false;
+    document.querySelector('.status-dot').style.backgroundColor = "#22c55e";
     document.getElementById('speech-status').textContent = "Warte auf Aktivierungswort...";
     speak("Ich schlafe wieder.");
-    clearTimeout(awakeTimeout);
 }
 
-// 4. Daten an Firebase senden (POST)
+// 5. DATEN DIREKT AN DEINE FIREBASE URL SENDEN
 document.getElementById('obstacle-form').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -167,15 +184,27 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
         votedDown: {}
     };
 
-    fetch(DB_URL, { method: 'POST', body: JSON.stringify(newObstacle) })
+    fetch(DB_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newObstacle)
+    })
+    .then(res => {
+        if(!res.ok) throw new Error("Netzwerkfehler");
+        return res.json();
+    })
     .then(() => {
-        speak("Erfolgreich in StepFree Echo gespeichert.");
+        speak("Erfolgreich in der Datenbank gespeichert.");
         document.getElementById('obstacle-form').reset();
         loadObstacles(); 
+    })
+    .catch(err => {
+        speak("Fehler beim Speichern.");
+        console.error(err);
     });
 });
 
-// 5. Daten laden & absichern
+// 6. DATEN AUS DB LADEN + AUTOMATISCHER RADAR SCAN (50 METER)
 function loadObstacles() {
     fetch(DB_URL)
     .then(res => res.json())
@@ -186,10 +215,13 @@ function loadObstacles() {
         
         if (!data) return;
 
+        let obstaclesNearby = [];
+
         Object.keys(data).forEach(id => {
             const item = data[id];
             if (!item || item.latitude === undefined || item.longitude === undefined) return;
 
+            const distance = Math.round(getDistanceInMeters(userLatitude, userLongitude, item.latitude, item.longitude));
             const upVotes = item.votedUp ? Object.keys(item.votedUp).length : 0;
             const downVotes = item.votedDown ? Object.keys(item.votedDown).length : 0;
 
@@ -200,27 +232,41 @@ function loadObstacles() {
             };
             const NameReingeschrieben = typeNames[item.type] || 'Hindernis';
 
-            const marker = L.marker([item.latitude, item.longitude], {
+            if (distance <= 50) {
+                obstaclesNearby.push(`${NameReingeschrieben} in ${distance} Metern Entfernung. ${item.description || ''}`);
+            }
+
+            // BARRIEREFREIER MARKER FÜR SCREENREADER & SEHENDE
+            const marker = L.marker([item.latitude, item.longitude], { 
                 keyboard: true,
-                title: `${NameReingeschrieben}. ${item.description || ''}. Stimmen dafür: ${upVotes}`
+                title: `${NameReingeschrieben}. ${distance} Meter entfernt. Beschreibung: ${item.description || 'Keine'}. Bestätigt von ${upVotes} Personen.`
             });
-            marker.bindPopup(`<b>${NameReingeschrieben}</b><br>${item.description || ''}`);
+            marker.bindPopup(`<b>${NameReingeschrieben}</b> (${distance}m)<br>${item.description || ''}`);
             markerGroup.addLayer(marker);
 
             if (listContainer) {
                 const li = document.createElement('li');
                 li.innerHTML = `
-                    <p><strong>${NameReingeschrieben}</strong>: ${item.description || ''}</p>
-                    <button onclick="castVote('${id}', 'up')" aria-label="Stimmt (${upVotes})">Stimmt (${upVotes})</button>
-                    <button onclick="castVote('${id}', 'down')" aria-label="Stimmt nicht (${downVotes})">Stimmt nicht (${downVotes})</button>
+                    <p><strong>${NameReingeschrieben}</strong> (${distance}m entfernt): ${item.description || ''}</p>
+                    <div class="vote-buttons">
+                        <button class="btn-vote" onclick="castVote('${id}', 'up')" aria-label="Stimmt (${upVotes})">Stimmt (${upVotes})</button>
+                        <button class="btn-vote" onclick="castVote('${id}', 'down')" aria-label="Stimmt nicht (${downVotes})">Stimmt nicht (${downVotes})</button>
+                    </div>
                 `;
                 listContainer.appendChild(li);
             }
         });
-    });
+
+        // Automatische Sprachwarnung bei Betreten des 50m-Radius
+        if (obstaclesNearby.length > 0) {
+            let warningText = `Achtung, es gibt ${obstaclesNearby.length} Hindernisse im Umkreis von 50 Metern. `;
+            warningText += obstaclesNearby.join(". ");
+            speak(warningText);
+        }
+    }).catch(e => console.log("Fehler beim Laden:", e));
 }
 
-// 6. Abstimmen
+// 7. VOTING-SYSTEM
 window.castVote = function(id, type) {
     fetch(`${BASE_URL}${id}.json`)
     .then(res => res.json())

@@ -10,44 +10,52 @@
 </head>
 <body>
 
-    <div id="splash-screen" role="dialog" aria-labelledby="splash-title" aria-describedby="splash-desc">
+    <button id="splash-screen" role="button" aria-label="Willkommen bei StepFree Echo. Tippe doppelt auf den Bildschirm, um die App und die barrierefreie Sprachsteuerung zu starten.">
         <div class="splash-content">
-            <h1 id="splash-title">StepFree Echo</h1>
-            <p id="splash-desc">Tippe irgendwo auf den Bildschirm, um die barrierefreie Sprachsteuerung zu starten.</p>
+            <h1>StepFree Echo</h1>
+            <p>Tippen zum Starten</p>
+            <div class="splash-pulse"></div>
         </div>
-    </div>
+    </button>
 
     <div id="app-content" class="hidden">
-        <header>
-            <h1>StepFree Echo</h1>
-            <p id="speech-status" role="status">Warte auf Aktivierungswort...</p>
+        <header class="app-header">
+            <h1 aria-live="polite">StepFree Echo</h1>
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                <p id="speech-status" role="status">Warte auf Aktivierungswort...</p>
+            </div>
         </header>
 
-        <main>
-            <section id="map-container" aria-label="Interaktive Karte">
+        <main class="app-container">
+            <section id="map-container" aria-label="Interaktive Karte. Sehende können durch Klicken auf die Karte Hindernisse melden.">
                 <div id="map"></div>
             </section>
 
-            <section id="obstacle-form-section" aria-labelledby="form-title">
+            <section id="obstacle-form-section" class="card" aria-labelledby="form-title">
                 <h2 id="form-title">Neues Hindernis melden</h2>
                 <form id="obstacle-form">
-                    <label for="obstacle-type">Art des Hindernisses:</label>
-                    <select id="obstacle-type" required>
-                        <option value="baustelle">Baustelle</option>
-                        <option value="kein-leitsystem">Fehlendes Blindenleitsystem</option>
-                        <option value="hohe-kante">Hohe Bordsteinkante</option>
-                    </select>
+                    <div class="form-group">
+                        <label for="obstacle-type">Art des Hindernisses</label>
+                        <select id="obstacle-type" required>
+                            <option value="baustelle">Baustelle</option>
+                            <option value="kein-leitsystem">Fehlendes Blindenleitsystem</option>
+                            <option value="hohe-kante">Hohe Bordsteinkante</option>
+                        </select>
+                    </div>
 
-                    <label for="obstacle-desc">Beschreibung:</label>
-                    <input type="text" id="obstacle-desc" placeholder="z.B. Baustelle blockiert Gehweg">
+                    <div class="form-group">
+                        <label for="obstacle-desc">Beschreibung (optional)</label>
+                        <input type="text" id="obstacle-desc" placeholder="z.B. Baustelle blockiert Gehweg komplett">
+                    </div>
 
-                    <button type="submit" id="submit-btn">Hindernis speichern</button>
+                    <button type="submit" id="submit-btn" class="btn-primary">Hindernis auf Position speichern</button>
                 </form>
             </section>
 
-            <section id="obstacles-list-section" aria-labelledby="list-title">
+            <section id="obstacles-list-section" class="card" aria-labelledby="list-title">
                 <h2 id="list-title">Hindernisse in der Nähe</h2>
-                <ul id="obstacles-list"></ul>
+                <ul id="obstacles-list" class="styled-list"></ul>
             </section>
         </main>
     </div>

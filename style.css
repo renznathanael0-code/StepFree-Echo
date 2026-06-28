@@ -1,73 +1,227 @@
-body {
-    font-family: Arial, sans-serif;
-    background-color: #ffffff;
-    color: #000000;
-    margin: 20px;
-    font-size: 1.2rem;
+/* --- GLOBALE STYLES (MODERN DARK MODE) --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
-/* STARTBILDSCHIRM STYLING */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #121214; /* Modernes Tiefschwarz/Dunkelgrau */
+    color: #e2e8f0;
+    font-size: 1.15rem;
+    line-height: 1.5;
+}
+
+/* --- SPLASH SCREEN (STARTBILDSCHIRM) --- */
 #splash-screen {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: #000000; /* Vollschwarz für hohen Kontrast */
+    background-color: #0f172a;
     color: #ffffff;
+    border: none;
     display: flex;
     justify-content: center;
     align-items: center;
     text-align: center;
     z-index: 9999;
     cursor: pointer;
+    transition: opacity 0.4s ease;
 }
 
 .splash-content h1 {
-    font-size: 3.5rem;
-    margin-bottom: 20px;
-    color: #00ffcc; /* Gut lesbares Neongrün/Türkis */
+    font-size: 4rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
 }
 
 .splash-content p {
     font-size: 1.5rem;
+    color: #94a3b8;
+}
+
+/* Pulsierender Kreis-Effekt für die visuelle Dynamik */
+.splash-pulse {
+    width: 20px;
+    height: 20px;
+    background: #00f2fe;
+    border-radius: 50%;
+    margin: 30px auto 0;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 242, 254, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(0, 242, 254, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 242, 254, 0); }
+}
+
+/* --- APP LAYOUT --- */
+.app-header {
+    background-color: #1e293b;
+    padding: 20px;
+    text-align: center;
+    border-bottom: 2px solid #334155;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+.app-header h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 10px;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: #0f172a;
+    padding: 8px 16px;
+    border-radius: 30px;
+    border: 1px solid #475569;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    background-color: #22c55e; /* Grün für Aktiv */
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.app-container {
+    max-width: 800px;
+    margin: 30px auto;
     padding: 0 20px;
 }
 
-/* Hilfsklassen zum Ein-/Ausblenden */
-.hidden {
-    display: none !important;
-}
-
-/* LEAFLET MAP & INTERFACES */
+/* Karten-Styling */
 #map {
-    height: 400px;
+    height: 450px;
     width: 100%;
+    border-radius: 16px;
+    border: 3px solid #334155;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+/* Cards (Formular & Listen) */
+.card {
+    background-color: #1e293b;
+    border-radius: 16px;
+    padding: 25px;
+    margin-bottom: 30px;
+    border: 1px solid #334155;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+}
+
+.card h2 {
+    font-size: 1.6rem;
+    color: #ffffff;
     margin-bottom: 20px;
-    border: 2px solid #000;
+    border-left: 5px solid #00f2fe;
+    padding-left: 10px;
 }
 
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    border: 0;
+/* Formularelemente */
+.form-group {
+    margin-bottom: 20px;
 }
 
-button, input, select {
+label {
     display: block;
-    width: 100%;
-    margin: 15px 0;
-    padding: 15px;
-    font-size: 1.2rem;
-    border: 2px solid #000;
-    background-color: #f0f0f0;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #94a3b8;
 }
 
-button:focus, input:focus, select:focus {
-    outline: 4px solid #0056b3;
+select, input[type="text"] {
+    width: 100%;
+    padding: 14px;
+    background-color: #0f172a;
+    border: 2px solid #475569;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+}
+
+select:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: #00f2fe;
+    box-shadow: 0 0 0 4px rgba(0, 242, 254, 0.2);
+}
+
+/* Buttons */
+.btn-primary {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+    color: #0f172a;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(0, 242, 254, 0.3);
+    transition: transform 0.1s ease, opacity 0.2s ease;
+}
+
+.btn-primary:active {
+    transform: scale(0.98);
+}
+
+/* Hindernis-Liste & Voting */
+.styled-list {
+    list-style: none;
+}
+
+.styled-list li {
+    background-color: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 15px;
+}
+
+.styled-list li p {
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+}
+
+.vote-buttons {
+    display: flex;
+    gap: 15px;
+}
+
+.btn-vote {
+    flex: 1;
+    padding: 12px;
+    background-color: #334155;
+    color: white;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-vote:focus {
+    outline: none;
+    border-color: #00f2fe;
+    background-color: #475569;
+}
+
+/* Utilities */
+.hidden { display: none !important; }
+.sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;
 }
