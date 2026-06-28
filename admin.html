@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StepFree Echo - Admin Panel</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; margin: 0; padding: 30px; color: #f8fafc; }
+        .wrapper { max-width: 1200px; margin: 0 auto; }
+        .login-card { background: #1e293b; padding: 40px; border-radius: 12px; max-width: 400px; margin: 150px auto; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #334155; }
+        input[type="password"] { width: 90%; padding: 12px; margin: 15px 0; background: #0f172a; border: 1px solid #475569; border-radius: 6px; color: #fff; text-align: center; font-size: 1.1em; }
+        button { padding: 10px 18px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .btn-primary { background: #38bdf8; color: #0f172a; }
+        .btn-primary:hover { background: #0ea5e9; }
+        .btn-verify { background: #10b981; color: white; }
+        .btn-check { background: #f59e0b; color: white; }
+        .btn-delete { background: #ef4444; color: white; }
+        table { width: 100%; border-collapse: collapse; background: #1e293b; margin-top: 25px; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #334155; }
+        th { background-color: #334155; color: #38bdf8; }
+        .alarm-row { background-color: #451a03 !important; border-left: 6px solid #ef4444; animation: pulse 2s infinite; }
+        .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8em; font-weight: bold; text-transform: uppercase; }
+        .badge-verified { background: #064e3b; color: #34d399; }
+        .badge-pending { background: #78350f; color: #fbbf24; }
+        .badge-review { background: #7f1d1d; color: #f87171; border: 1px solid #ef4444; }
+        .badge-requested { background: #1e3a8a; color: #60a5fa; }
+        .alert-banner { background: #7f1d1d; border: 1px solid #ef4444; color: #fca5a5; padding: 15px; border-radius: 8px; margin-bottom: 25px; font-weight: bold; display: none; }
+        @keyframes pulse { 0% { opacity: 0.9; } 50% { opacity: 1; } 100% { opacity: 0.9; } }
+    </style>
+</head>
+<body>
+
+<div id="login-container" class="login-card">
+    <h2>🔑 Admin Zugang</h2>
+    <p style="color: #94a3b8;">Bitte gib das Passwort ein, um fortzufahren.</p>
+    <input type="password" id="password-field" placeholder="••••••••" onkeydown="if(event.key === 'Enter') login()">
+    <br>
+    <button class="btn-primary" onclick="login()">Dashboard öffnen</button>
+</div>
+
+<div id="dashboard-container" class="wrapper" style="display: none;">
+    <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h1 style="margin: 0; color: #38bdf8;">StepFree Echo — Administration</h1>
+            <p style="color: #94a3b8; margin: 5px 0 0 0;">Qualitätsmanagement und Crowdsourcing-Überwachung</p>
+        </div>
+        <button class="btn-delete" onclick="location.reload()">Ausloggen</button>
+    </header>
+
+    <div id="alarm-banner" class="alert-banner">
+        🚨 ALARM: Mindestens ein Hindernis hat eine kritische Anzahl negativer Bewertungen erhalten (Score &le; -3) und erfordert sofortige Prüfung!
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Kategorie</th>
+                <th>Beschreibung</th>
+                <th>Position (Lat / Lon)</th>
+                <th>Bewertung Score</th>
+                <th>Aktueller Status</th>
+                <th>Management Aktionen</th>
+            </tr>
+        </thead>
+        <tbody id="admin-table-content">
+            </tbody>
+    </table>
+</div>
+
+<script>
+const DB_URL = "https://stepfree-echo-default-rtdb.europe-west1.firebasedatabase.app/obstacles.json";
+const BASE_URL = "https://stepfree-echo-default-rtdb.europe-west1.firebasedatabase.app/obstacles/";
+
+function login() {
+    const enteredPass = document.getElementById('password-field').value;
+    if (enteredPass === "echo2026") { // Setze hier dein Passwort fest
+        document.getElementById('login-container').style.display = 'none';
+        document.getElementById('dashboard-container').style.display = 'block';
+        fetchAdminData();
+        setInterval(fetchAdminData, 5000); // Live-Updates alle 5 Sekunden
+    } else {
+        alert("Ungültiges Passwort!");
+    }
+}
+
+function fetchAdminData() {
+    fetch(DB_URL)
+    .then(res => res.json())
+    .then(data => {
+        const tbody = document.getElementById('admin-table-content');
+        tbody.innerHTML = "";
+        let alarmTriggered = false;
+
+        if (!data) return;
+
+        Object.keys(data).forEach(id => {
+            const item = data[id];
+            const up = item.votedUp ? Object.keys(item.votedUp).length : 0;
+            const down = item.votedDown ? Object.keys(item.votedDown).length : 0;
+            const score = up - down;
+
+            let isAlarm = false;
+            if (item.status === "flagged_for_review" || score <= -3) {
+                isAlarm = true;
+                alarmTriggered = true;
+            }
+
+            const categories = { 'baustelle': 'Baustelle', 'hohe-kante': 'Hohe Kante', 'kein-leitsystem': 'Fehlendes Leitsystem' };
+            const statusLabels = { 
+                'pending': '<span class="status-badge badge-pending">Wartend</span>',
+                'verified': '<span class="status-badge badge-verified">Verifiziert</span>',
+                'flagged_for_review': '<span class="status-badge badge-review">🚨 Alarm</span>',
+                'user_check_requested': '<span class="status-badge badge-requested">User-Check läuft</span>'
+            };
+
+            const tr = document.createElement('tr');
+            if (isAlarm) tr.className = "alarm-row";
+
+            tr.innerHTML = `
+                <td><strong>${categories[item.type] || 'Hindernis'}</strong></td>
+                <td>${item.description || '<em style="color:#64748b;">Keine Beschreibung</em>'}</td>
+                <td style="font-family: monospace; font-size: 0.9em;">${item.latitude.toFixed(5)}, ${item.longitude.toFixed(5)}</td>
+                <td><span style="color:#34d399;">+${up}</span> / <span style="color:#f87171;">-${down}</span> (<strong>${score}</strong>)</td>
+                <td>${statusLabels[item.status] || statusLabels['pending']}</td>
+                <td>
+                    <button class="btn-verify" onclick="changeStatus('${id}', 'verified')">Bestätigen</button>
+                    <button class="btn-check" onclick="changeStatus('${id}', 'user_check_requested')">User-Check vor Ort</button>
+                    <button class="btn-delete" onclick="removeObstacle('${id}')">Löschen</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('alarm-banner').style.display = alarmTriggered ? 'block' : 'none';
+    });
+}
+
+function changeStatus(id, status) {
+    fetch(`${BASE_URL}${id}.json`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: status })
+    }).then(() => fetchAdminData());
+}
+
+function removeObstacle(id) {
+    if(confirm("Eintrag endgültig aus der globalen Datenbank löschen?")) {
+        fetch(`${BASE_URL}${id}.json`, { method: 'DELETE' }).then(() => fetchAdminData());
+    }
+}
+</script>
+</body>
+</html>

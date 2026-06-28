@@ -17,9 +17,10 @@ let currentNearbyObstacles = [];
 let lastFetchedData = null; 
 
 // Variablen für das geführte Sprach-Formular
-let formStep = 0; // 0 = Bereit, 1 = Wartet auf Kategorie, 2 = Wartet auf Beschreibung, 3 = Wartet auf Bestätigung
+let formStep = 0; // 0=Bereit, 1=Kategorie, 2=Beschreibung, 3=Speichern-Bestätigung, 4=Admin-Prüfung vor Ort
 let tempType = "";
 let tempDesc = "";
+let activeCheckObstacleId = null; // ID des Hindernisses, das gerade vor Ort geprüft wird
 
 // ==========================================
 // 1. KARTEN-INITIALISIERUNG & STANDORT
@@ -45,8 +46,11 @@ if (navigator.geolocation) {
             userMarker.setLatLng([userLatitude, userLongitude]);
         }
 
+        // Bei jeder Standortänderung Daten neu bewerten (wichtig für den automatischen 20m Admin-Check)
         if (lastFetchedData) {
             renderObstacles(lastFetchedData, false); 
+        } else {
+            loadObstacles(false);
         }
     }, (err) => console.log("GPS verzögert..."), { enableHighAccuracy: true });
 }
@@ -136,6 +140,7 @@ function resetGuidedForm() {
     formStep = 0;
     tempType = "";
     tempDesc = "";
+    activeCheckObstacleId = null;
     if (temporaryClickMarker) {
         map.removeLayer(temporaryClickMarker);
         temporaryClickMarker = null;
@@ -177,7 +182,7 @@ function initSpeechRecognition() {
             return;
         }
 
-        // NEU: Manueller Standby / Schlaf-Befehl
+        // Manueller Schlaf-Befehl
         if (command.includes('geh schlafen') || command === 'schlafen' || command.includes('gute nacht')) {
             resetGuidedForm();
             speak("Alles klar, ich lege mich schlafen.");
@@ -196,7 +201,7 @@ function initSpeechRecognition() {
             return;
         }
 
-        // Aufwecken mit "Echo"
+        // Aufwecken mit "Echo" (Nur wenn kein erzwungener Schritt aktiv ist)
         if (command.includes('echo') && formStep === 0) {
             isAppAwake = true;
             if(statusBadge) statusBadge.style.backgroundColor = "#00f2fe";
@@ -234,7 +239,7 @@ function initSpeechRecognition() {
                 return;
             }
 
-            // SCHRITT 2: BESCHREIBUNG ERFASSEN (OPTIONAL)
+            // SCHRITT 2: BESCHREIBUNG ERFASSEN
             if (formStep === 2) {
                 if (command === 'überspringen' || command === 'weiter' || command === 'keine' || command === 'nein' || command.includes('überspringen')) {
                     tempDesc = ""; 
@@ -265,6 +270,26 @@ function initSpeechRecognition() {
                     formStep = 1;
                 } else {
                     speak("Bitte antworte mit Ja zum Speichern oder Nein zum Korrigieren.");
+                }
+                return;
+            }
+
+            // NEU: SCHRITT 4 — AUTOMATISCHE ABFRAGE VOR ORT (20m Radius vom Admin initiiert)
+            if (formStep === 4 && activeCheckObstacleId) {
+                if (command.includes('ja') || command.includes('stimmt') || command.includes('bestätigen') || command === 'existiert') {
+                    window.castVote(activeCheckObstacleId, 'up');
+                    // Zustand zurücksetzen
+                    resetGuidedForm();
+                    speak("Vielen Dank für deine Hilfe. Ich habe eingecheckt und den Punkt für das System bestätigt.");
+                    putToSleep();
+                } else if (command.includes('nein') || command.includes('falsch') || command.includes('nicht') || command === 'frei') {
+                    window.castVote(activeCheckObstacleId, 'down');
+                    // Zustand zurücksetzen
+                    resetGuidedForm();
+                    speak("Alles klar, danke. Ich habe registriert, dass der Weg hier frei ist.");
+                    putToSleep();
+                } else {
+                    speak("Ich brauche deine Bestätigung vor Ort. Antworte bitte einfach mit Ja oder Nein.");
                 }
                 return;
             }
@@ -329,6 +354,7 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
         description: desc,
         latitude: userLatitude,
         longitude: userLongitude,
+        status: "pending", // Standard-Status beim Erstellen
         votedUp: {},
         votedDown: {}
     };
@@ -342,7 +368,7 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
     .then(() => {
         speak("Erfolgreich in der Datenbank gespeichert.");
         resetGuidedForm();
-        loadObstacles(); 
+        loadObstacles(false); 
     })
     .catch(err => {
         speak("Fehler beim Speichern.");
@@ -353,12 +379,12 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
 // ==========================================
 // 6. DATEN AUS DATENBANK LADEN & DARSTELLEN
 // ==========================================
-function loadObstacles() {
+function loadObstacles(triggerVoiceWarning = true) {
     fetch(DB_URL)
     .then(res => res.json())
     .then(data => {
         lastFetchedData = data; 
-        renderObstacles(data, true); 
+        renderObstacles(data, triggerVoiceWarning); 
     }).catch(e => console.log(e));
 }
 
@@ -373,6 +399,7 @@ function renderObstacles(data, triggerVoiceWarning) {
     }
 
     let obstaclesNearby = [];
+    let activeUrgentCheck = null;
 
     Object.keys(data).forEach(id => {
         const item = data[id];
@@ -388,6 +415,14 @@ function renderObstacles(data, triggerVoiceWarning) {
             'kein-leitsystem': 'Fehlendes Blindenleitsystem'
         };
         const NameReingeschrieben = typeNames[item.type] || 'Hindernis';
+
+        // NEU: Wenn ein Admin-Check gefordert ist UND der User im 20m Radius ist -> Priorität einräumen
+        if (item.status === "user_check_requested" && distance <= 20 && formStep === 0) {
+            activeUrgentCheck = {
+                id: id,
+                text: `${NameReingeschrieben}. ${item.description || ''}`
+            };
+        }
 
         if (distance <= 50) {
             obstaclesNearby.push({
@@ -418,6 +453,20 @@ function renderObstacles(data, triggerVoiceWarning) {
 
     currentNearbyObstacles = obstaclesNearby;
 
+    // NEU: Wenn ein Admin-Check im 20m Radius getriggert wird, wacht die App VOLLAUTOMATISCH auf!
+    if (activeUrgentCheck && !isVoiceSystemDisabled) {
+        formStep = 4;
+        isAppAwake = true;
+        activeCheckObstacleId = activeUrgentCheck.id;
+        
+        const statusBadge = document.querySelector('.status-dot');
+        if(statusBadge) statusBadge.style.backgroundColor = "#ef4444"; // Alarm-Farbe beim automatischen Aufwachen
+
+        speak(`Wichtige Überprüfung vor Ort. Du befindest dich direkt an einem gemeldeten Hindernis: ${activeUrgentCheck.text}. Bitte hilf mit und checke ein. Existiert dieses Hindernis aktuell? Antworte mit Ja oder Nein.`);
+        return; 
+    }
+
+    // Normale Warnung, falls kein akuter Admin-Check im Weg steht
     if (triggerVoiceWarning && obstaclesNearby.length > 0 && !isVoiceSystemDisabled && formStep === 0) {
         let warningText = `Achtung, es gibt ${obstaclesNearby.length} Hindernisse im Umkreis von 50 Metern. `;
         obstaclesNearby.forEach((obs, index) => {
@@ -428,7 +477,7 @@ function renderObstacles(data, triggerVoiceWarning) {
 }
 
 // ==========================================
-// 7. VOTING-SYSTEM
+// 7. VOTING-SYSTEM & AUTOMATISCHE LOGIKEN
 // ==========================================
 window.castVote = function(id, type) {
     fetch(`${BASE_URL}${id}.json`)
@@ -446,10 +495,29 @@ window.castVote = function(id, type) {
             else { votedDown[userId] = true; delete votedUp[userId]; speak("Als nicht existent markiert."); }
         }
 
-        fetch(`${BASE_URL}${id}/votedUp.json`, { method: 'PUT', body: JSON.stringify(votedUp) });
-        fetch(`${BASE_URL}${id}/votedDown.json`, { method: 'PUT', body: JSON.stringify(votedDown) })
-        .then(() => loadObstacles());
+        const finalUp = Object.keys(votedUp).length;
+        const finalDown = Object.keys(votedDown).length;
+        let finalStatus = item.status || "pending";
+
+        // Automatische Verifizierung ab 3 positiven Votes
+        if (finalUp >= 3) {
+            finalStatus = "verified";
+        }
+        // Automatisches Melden / Alarmieren des Admins ab -3 Netto-Votes
+        if ((finalUp - finalDown) <= -3) {
+            finalStatus = "flagged_for_review";
+        }
+
+        // Alle Werte synchronisiert an Firebase schicken
+        fetch(`${BASE_URL}${id}.json`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                votedUp: votedUp,
+                votedDown: votedDown,
+                status: finalStatus
+            })
+        }).then(() => loadObstacles(false));
     });
 };
 
-loadObstacles();
+loadObstacles(true);
