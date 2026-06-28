@@ -13,8 +13,13 @@ let awakeTimeout = null;
 let recognition = null;
 let shouldListen = true;
 let isVoiceSystemDisabled = false; 
-let currentNearbyObstacles = [];   // Speichert die IDs der aktuellen Hindernisse für das Sprach-Voting
+let currentNearbyObstacles = [];   
 let lastFetchedData = null; 
+
+// Variablen für das geführte Sprach-Formular
+let formStep = 0; // 0 = Bereit, 1 = Wartet auf Kategorie, 2 = Wartet auf Beschreibung, 3 = Wartet auf Bestätigung
+let tempType = "";
+let tempDesc = "";
 
 // ==========================================
 // 1. KARTEN-INITIALISIERUNG & STANDORT
@@ -54,19 +59,10 @@ map.on('click', function(e) {
         map.removeLayer(temporaryClickMarker);
     }
 
-    temporaryClickMarker = L.marker([userLatitude, userLongitude], {
-        draggable: true
-    }).addTo(map).bindPopup("<b>Gewählter Ort für neues Hindernis</b>").openPopup();
+    temporaryClickMarker = L.marker([userLatitude, userLongitude], { draggable: true }).addTo(map);
 
-    temporaryClickMarker.on('dragend', function(event) {
-        const marker = event.target;
-        const position = marker.getLatLng();
-        userLatitude = position.lat;
-        userLongitude = position.lng;
-    });
-
-    document.getElementById('obstacle-type').focus();
-    speak("Ort auf der Karte markiert. Bitte wähle die Art des Hindernisses.");
+    isAppAwake = true;
+    startGuidedForm();
 });
 
 function getDistanceInMeters(lat1, lon1, lat2, lon2) {
@@ -95,7 +91,7 @@ function speak(text, callback) {
         if (recognition && !isVoiceSystemDisabled) { 
             try { recognition.start(); } catch(e) {} 
         }
-        if (isAppAwake && !isVoiceSystemDisabled) {
+        if (isAppAwake && !isVoiceSystemDisabled && formStep === 0) {
             clearTimeout(awakeTimeout);
             awakeTimeout = setTimeout(putToSleep, 15000);
         }
@@ -124,13 +120,31 @@ function startApp() {
     appContent.classList.remove('hidden');
     setTimeout(() => { map.invalidateSize(); }, 200);
 
-    speak("App gestartet. Ich höre ab jetzt im Hintergrund zu. Rufe mich mit dem Namen Echo.", () => {
+    speak("App gestartet. Rufe mich mit dem Namen Echo.", () => {
         initSpeechRecognition();
     });
 }
 
+function startGuidedForm() {
+    formStep = 1;
+    tempType = "";
+    tempDesc = "";
+    speak("Geführtes Formular gestartet. Schritt 1: Bitte nenne die Kategorie. Baustelle, Bordstein oder Leitsystem?");
+}
+
+function resetGuidedForm() {
+    formStep = 0;
+    tempType = "";
+    tempDesc = "";
+    if (temporaryClickMarker) {
+        map.removeLayer(temporaryClickMarker);
+        temporaryClickMarker = null;
+    }
+    document.getElementById('obstacle-form').reset();
+}
+
 // ==========================================
-// 4. SPRACHSTEUERUNG & INTERAKTION
+// 4. SPRACHSTEUERUNG (ZUSTANDSMASCHINE)
 // ==========================================
 function initSpeechRecognition() {
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
@@ -155,94 +169,125 @@ function initSpeechRecognition() {
         const statusBadge = document.querySelector('.status-dot');
         const statusText = document.getElementById('speech-status');
 
+        if (command.includes('abbrechen') || command.includes('stop')) {
+            resetGuidedForm();
+            speak("Eingabe abgebrochen.");
+            putToSleep();
+            return;
+        }
+
         if (command.includes('ausschalten') || command.includes('deaktivieren')) {
             isVoiceSystemDisabled = true;
             isAppAwake = false;
             clearTimeout(awakeTimeout);
             if(statusBadge) statusBadge.style.backgroundColor = "#ef4444"; 
-            if(statusText) statusText.textContent = "Sprachsteuerung permanent offline.";
+            if(statusText) statusText.textContent = "Sprachsteuerung offline.";
             speak("Sprachsteuerung wurde vollständig deaktiviert.");
             return;
         }
 
-        if (command.includes('echo')) {
+        if (command.includes('echo') && formStep === 0) {
             isAppAwake = true;
             if(statusBadge) statusBadge.style.backgroundColor = "#00f2fe";
             if(statusText) statusText.textContent = "Zuhören aktiv...";
-            speak("Ja? Ich höre.");
+            
+            if (command.includes('neu') || command.includes('eintragen') || command.includes('hindernis')) {
+                startGuidedForm();
+            } else {
+                speak("Ja? Ich höre.");
+            }
             return;
         }
 
         if (isAppAwake) {
-            // BEFEHL: Hindernisse in der Umgebung abfragen
-            if (command.includes('umgebung') || command.includes('hindernisse')) {
-                if (currentNearbyObstacles.length > 0) {
-                    let text = `Es gibt ${currentNearbyObstacles.length} Hindernisse in deiner Nähe. `;
-                    currentNearbyObstacles.forEach((obs, index) => {
-                        text += `Nummer ${index + 1}: ${obs.text}. `;
-                    });
-                    speak(text);
+            // SCHRITT 1: KATEGORIE ERFASSEN
+            if (formStep === 1) {
+                if (command.includes('baustelle')) {
+                    tempType = 'baustelle';
+                    document.getElementById('obstacle-type').value = 'baustelle';
+                    formStep = 2;
+                    speak("Kategorie Baustelle erfasst. Schritt 2: Bitte spreche die Beschreibung oder sage Überspringen.");
+                } else if (command.includes('bordstein') || command.includes('kante')) {
+                    tempType = 'hohe-kante';
+                    document.getElementById('obstacle-type').value = 'hohe-kante';
+                    formStep = 2;
+                    speak("Kategorie Hohe Kante erfasst. Schritt 2: Bitte spreche die Beschreibung oder sage Überspringen.");
+                } else if (command.includes('leitsystem')) {
+                    tempType = 'kein-leitsystem';
+                    document.getElementById('obstacle-type').value = 'kein-leitsystem';
+                    formStep = 2;
+                    speak("Kategorie Fehlendes Leitsystem erfasst. Schritt 2: Bitte spreche die Beschreibung oder sage Überspringen.");
                 } else {
-                    speak("Es befinden sich keine Hindernisse im Umkreis von 50 Metern.");
+                    speak("Ich habe die Kategorie nicht verstanden. Bitte wähle: Baustelle, Bordstein oder Leitsystem.");
                 }
                 return;
             }
 
-            // NEU: SPRACH-VOTING SYSTEM (z.B. "Nummer 1 stimmt" oder "Nummer 2 ablehnen")
-            if (command.includes('nummer') || command.includes('hindernis nummer')) {
-                // Extrahiere die Zahl aus dem Text (unterstützt Zahlenwörter von 1 bis 5 und Ziffern)
-                const numberMap = { 'eins': 1, '1': 1, 'zwei': 2, '2': 2, 'drei': 3, '3': 3, 'vier': 4, '4': 4, 'fünf': 5, '5': 5 };
-                let targetIndex = null;
-
-                Object.keys(numberMap).forEach(key => {
-                    if (command.includes(key)) {
-                        targetIndex = numberMap[key] - 1; // Array-Index startet bei 0
-                    }
-                });
-
-                if (targetIndex !== null && currentNearbyObstacles[targetIndex]) {
-                    const obstacleId = currentNearbyObstacles[targetIndex].id;
-                    
-                    if (command.includes('stimmt') || command.includes('bestätigen') || command.includes('ja')) {
-                        window.castVote(obstacleId, 'up');
-                    } else if (command.includes('nicht') || command.includes('ablehnen') || command.includes('falsch') || command.includes('nein')) {
-                        window.castVote(obstacleId, 'down');
-                    } else {
-                        speak("Möchtest du das Hindernis bestätigen oder ablehnen?");
-                    }
-                    
-                    // Nach dem Vote legen wir das System wieder schlafen
-                    isAppAwake = false;
-                    clearTimeout(awakeTimeout);
-                    return;
+            // SCHRITT 2: BESCHREIBUNG ERFASSEN (JETZT OPTIONAL)
+            if (formStep === 2) {
+                // Prüfen, ob der Nutzer die Beschreibung überspringen möchte
+                if (command === 'überspringen' || command === 'weiter' || command === 'keine' || command === 'nein' || command.includes('überspringen')) {
+                    tempDesc = ""; // Keine Beschreibung eingetragen
+                    document.getElementById('obstacle-desc').value = "";
                 } else {
-                    speak("Diese Nummer habe ich in deiner Liste nicht gefunden.");
-                    return;
+                    tempDesc = event.results[event.results.length - 1][0].transcript;
+                    document.getElementById('obstacle-desc').value = tempDesc;
                 }
+                
+                formStep = 3;
+                const typeNames = { 'baustelle': 'Baustelle', 'hohe-kante': 'Hohe Bordsteinkante', 'kein-leitsystem': 'Fehlendes Blindenleitsystem' };
+                
+                if (tempDesc) {
+                    speak(`Beschreibung erfasst: ${tempDesc}. Schritt 3: Möchtest du das Hindernis ${typeNames[tempType]} jetzt speichern? Antworte mit Ja oder Nein.`);
+                } else {
+                    speak(`Keine Beschreibung hinzugefügt. Schritt 3: Möchtest du das Hindernis ${typeNames[tempType]} jetzt speichern? Antworte mit Ja oder Nein.`);
+                }
+                return;
             }
 
-            // BEFEHLE: Formularsteuerung
-            if (command.includes('baustelle')) {
-                document.getElementById('obstacle-type').value = 'baustelle';
-                speak("Kategorie Baustelle eingestellt.");
-            } else if (command.includes('bordstein') || command.includes('kante')) {
-                document.getElementById('obstacle-type').value = 'hohe-kante';
-                speak("Kategorie Hohe Bordsteinkante eingestellt.");
-            } else if (command.includes('leitsystem')) {
-                document.getElementById('obstacle-type').value = 'kein-leitsystem';
-                speak("Kategorie Fehlendes Blindenleitsystem eingestellt.");
-            } 
-            else if (command.includes('beschreibung')) {
-                const textAfterCommand = command.split('beschreibung')[1].trim();
-                if (textAfterCommand) {
-                    document.getElementById('obstacle-desc').value = textAfterCommand;
-                    speak(`Beschreibung eingetragen: ${textAfterCommand}`);
+            // SCHRITT 3: BESTÄTIGUNG UND SPEICHERN
+            if (formStep === 3) {
+                if (command.includes('ja') || command.includes('speichern') || command.includes('senden')) {
+                    document.getElementById('obstacle-form').dispatchEvent(new Event('submit'));
+                } else if (command.includes('nein') || command.includes('falsch')) {
+                    resetGuidedForm();
+                    speak("Eintrag gelöscht. Wir starten von vorn. Schritt 1: Bitte nenne die Kategorie.");
+                    formStep = 1;
+                } else {
+                    speak("Bitte antworte mit Ja zum Speichern oder Nein zum Korrigieren.");
                 }
-            } 
-            else if (command.includes('speichern') || command.includes('senden')) {
-                document.getElementById('obstacle-form').dispatchEvent(new Event('submit'));
-                isAppAwake = false;
-                clearTimeout(awakeTimeout);
+                return;
+            }
+
+            // NORMALE BEFEHLE
+            if (formStep === 0) {
+                if (command.includes('umgebung') || command.includes('hindernisse')) {
+                    if (currentNearbyObstacles.length > 0) {
+                        let text = `Es gibt ${currentNearbyObstacles.length} Hindernisse in deiner Nähe. `;
+                        currentNearbyObstacles.forEach((obs, index) => { text += `Nummer ${index + 1}: ${obs.text}. `; });
+                        speak(text);
+                    } else {
+                        speak("Es befinden sich keine Hindernisse im Umkreis von 50 Metern.");
+                    }
+                    return;
+                }
+
+                if (command.includes('nummer') || command.includes('hindernis nummer')) {
+                    const numberMap = { 'eins': 1, '1': 1, 'zwei': 2, '2': 2, 'drei': 3, '3': 3, 'vier': 4, '4': 4, 'fünf': 5, '5': 5 };
+                    let targetIndex = null;
+                    Object.keys(numberMap).forEach(key => { if (command.includes(key)) targetIndex = numberMap[key] - 1; });
+
+                    if (targetIndex !== null && currentNearbyObstacles[targetIndex]) {
+                        const obstacleId = currentNearbyObstacles[targetIndex].id;
+                        if (command.includes('stimmt') || command.includes('bestätigen') || command.includes('ja')) {
+                            window.castVote(obstacleId, 'up');
+                        } else if (command.includes('nicht') || command.includes('ablehnen') || command.includes('falsch')) {
+                            window.castVote(obstacleId, 'down');
+                        }
+                        isAppAwake = false;
+                        return;
+                    }
+                }
             }
         }
     };
@@ -251,7 +296,7 @@ function initSpeechRecognition() {
 }
 
 function putToSleep() {
-    if (isVoiceSystemDisabled) return;
+    if (isVoiceSystemDisabled || formStep > 0) return; 
     isAppAwake = false;
     const statusBadge = document.querySelector('.status-dot');
     const statusText = document.getElementById('speech-status');
@@ -265,6 +310,7 @@ function putToSleep() {
 // ==========================================
 document.getElementById('obstacle-form').addEventListener('submit', function(e) {
     e.preventDefault();
+
     const type = document.getElementById('obstacle-type').value;
     const desc = document.getElementById('obstacle-desc').value;
 
@@ -285,11 +331,7 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
     .then(res => res.json())
     .then(() => {
         speak("Erfolgreich in der Datenbank gespeichert.");
-        document.getElementById('obstacle-form').reset();
-        if (temporaryClickMarker) {
-            map.removeLayer(temporaryClickMarker);
-            temporaryClickMarker = null;
-        }
+        resetGuidedForm();
         loadObstacles(); 
     })
     .catch(err => {
@@ -337,7 +379,6 @@ function renderObstacles(data, triggerVoiceWarning) {
         };
         const NameReingeschrieben = typeNames[item.type] || 'Hindernis';
 
-        // Strukturiertes Objekt für das Sprach-Voting speichern
         if (distance <= 50) {
             obstaclesNearby.push({
                 id: id,
@@ -367,7 +408,7 @@ function renderObstacles(data, triggerVoiceWarning) {
 
     currentNearbyObstacles = obstaclesNearby;
 
-    if (triggerVoiceWarning && obstaclesNearby.length > 0 && !isVoiceSystemDisabled) {
+    if (triggerVoiceWarning && obstaclesNearby.length > 0 && !isVoiceSystemDisabled && formStep === 0) {
         let warningText = `Achtung, es gibt ${obstaclesNearby.length} Hindernisse im Umkreis von 50 Metern. `;
         obstaclesNearby.forEach((obs, index) => {
             warningText += `Nummer ${index + 1}: ${obs.text}. `;
