@@ -37,23 +37,26 @@ if (navigator.geolocation) {
     }, (err) => console.log("GPS sucht..."), { enableHighAccuracy: true });
 }
 
-// Sprachausgabe (Vorlesen)
-function speak(text) {
+// 1. Die speak-Funktion leicht erweitern, damit sie uns bescheid gibt, wenn sie fertig ist
+function speak(text, callback) {
     const announcer = document.getElementById('screenreader-announcer');
     if (announcer) announcer.textContent = text;
+    
     window.speechSynthesis.cancel(); 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'de-DE';
+    
+    // Wenn ein Callback (eine Folge-Aktion) mitgegeben wurde, führe es am Ende aus
+    if (callback) {
+        utterance.onend = () => {
+            callback();
+        };
+    }
+    
     window.speechSynthesis.speak(utterance);
 }
 
-// LOGIK FÜR DEN STARTBILDSCHIRM (SPLASH SCREEN)
-const splash = document.getElementById('splash-screen');
-const appContent = document.getElementById('app-content');
-
-splash.addEventListener('click', startApp);
-splash.addEventListener('touchstart', startApp);
-
+// 2. Die startApp-Funktion steuert das jetzt perfekt
 function startApp() {
     if (splash.classList.contains('hidden')) return;
 
@@ -62,16 +65,16 @@ function startApp() {
 
     setTimeout(() => { map.invalidateSize(); }, 200);
 
-    // 1. Begrüßung vorlesen
-    speak("Willkommen bei Step Free Echo. Die App ist bereit. Rufe mich jederzeit mit dem Namen Echo.");
-    
-    // 2. NEU: Erst nach 3,5 Sekunden (wenn die Stimme fertig ist) das Mikrofon einschalten!
-    setTimeout(() => {
-        initSpeechRecognition();
-        console.log("Mikrofon jetzt scharf geschaltet. Selbstaktivierung verhindert.");
-    }, 3500); 
+    // Wir übergeben initSpeechRecognition als "Befehl für danach"
+    speak(
+        "Willkommen bei Step Free Echo. Die App ist bereit. Rufe mich jederzeit mit dem Namen Echo.", 
+        () => {
+            // Dieser Block wird ERST ausgeführt, wenn der Punkt hinter "Echo" gesprochen wurde!
+            initSpeechRecognition();
+            console.log("Stimme fertig. Mikrofon ist jetzt absolut sicher aktiv.");
+        }
+    );
 }
-
 // SPRACHSTEUERUNG (ECHO AKTIVIERUNGSWORT)
 function initSpeechRecognition() {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
