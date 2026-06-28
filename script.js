@@ -12,9 +12,12 @@ let isAppAwake = false;
 let awakeTimeout = null;
 let recognition = null;
 let shouldListen = true;
-let isVoiceSystemDisabled = false; // NEU: Schalter, um das System komplett abzuschalten
+let isVoiceSystemDisabled = false; // Schalter, um das System komplett abzuschalten
+let currentNearbyObstacles = [];   // Speicher für das "Umgebung"-Sprachkommando
 
-// 1. KARTEN-INITIALISIERUNG
+// ==========================================
+// 1. KARTEN-INITIALISIERUNG & STANDORT
+// ==========================================
 const map = L.map('map').setView([userLatitude, userLongitude], 6);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap'
@@ -22,7 +25,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let markerGroup = L.layerGroup().addTo(map);
 let userMarker = null;
-let temporaryClickMarker = null; // NEU: Ein temporärer Marker für den Kartenklick
+let temporaryClickMarker = null; // Temporärer Marker für den Kartenklick
 
 // GPS Standortermittlung
 if (navigator.geolocation) {
@@ -41,22 +44,20 @@ if (navigator.geolocation) {
     }, (err) => console.log("GPS verzögert..."), { enableHighAccuracy: true });
 }
 
-// Klick-Funktion auf der Karte (KORRIGIERT & VISUELL)
+// Klick-Funktion auf der Karte für Angehörige / Sehende
 map.on('click', function(e) {
     userLatitude = e.latlng.lat;
     userLongitude = e.latlng.lng;
 
-    // Falls schon ein Klick-Marker existiert, entfernen wir ihn
     if (temporaryClickMarker) {
         map.removeLayer(temporaryClickMarker);
     }
 
-    // Setze einen auffälligen, neuen Marker an die geklickte Stelle
+    // Setze einen verschiebbaren Marker an die geklickte Stelle
     temporaryClickMarker = L.marker([userLatitude, userLongitude], {
-        draggable: true // Man kann ihn sogar noch verschieben!
+        draggable: true
     }).addTo(map).bindPopup("<b>Gewählter Ort für neues Hindernis</b>").openPopup();
 
-    // Wenn man ihn verschiebt, updaten wir die Koordinaten
     temporaryClickMarker.on('dragend', function(event) {
         const marker = event.target;
         const position = marker.getLatLng();
@@ -68,7 +69,7 @@ map.on('click', function(e) {
     speak("Ort auf der Karte markiert. Bitte wähle die Art des Hindernisses.");
 });
 
-// Distanzberechnung
+// Hilfsfunktion: Distanzberechnung
 function getDistanceInMeters(lat1, lon1, lat2, lon2) {
     const R = 6371000;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -80,12 +81,14 @@ function getDistanceInMeters(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
-// 2. RADIKALE SPRACHAUSGABE (Stoppt auch den Schlaf-Timer!)
+// ==========================================
+// 2. RADIKALE SPRACHAUSGABE
+// ==========================================
 function speak(text, callback) {
     const announcer = document.getElementById('screenreader-announcer');
     if (announcer) announcer.textContent = text;
 
-    // FIX: Wenn die App spricht, unterbrechen wir den Schlaf-Countdown, damit er uns nicht reinquatscht!
+    // Schlaf-Countdown stoppen, damit er nicht dazwischenredet
     clearTimeout(awakeTimeout);
 
     shouldListen = false;
@@ -98,12 +101,11 @@ function speak(text, callback) {
     utterance.onend = () => {
         shouldListen = true;
         
-        // Erst wenn das Sprechen VORBEI ist, aktivieren wir das Mikrofon wieder...
         if (recognition && !isVoiceSystemDisabled) { 
             try { recognition.start(); } catch(e) {} 
         }
 
-        // ...und erst JETZT starten wir den 15-Sekunden-Countdown zum Schlafen von neuem!
+        // Timer erst nach Beenden der Sprachausgabe neu starten
         if (isAppAwake && !isVoiceSystemDisabled) {
             clearTimeout(awakeTimeout);
             awakeTimeout = setTimeout(putToSleep, 15000);
@@ -114,7 +116,9 @@ function speak(text, callback) {
     window.speechSynthesis.speak(utterance);
 }
 
+// ==========================================
 // 3. STARTPROZESS
+// ==========================================
 window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         speak("Willkommen bei Step Free Echo. Tippe doppelt auf den Bildschirm, um die App zu starten.");
@@ -138,7 +142,9 @@ function startApp() {
     });
 }
 
-// 4. SPRACHSTEUERUNG
+// ==========================================
+// 4. SPRACHSTEUERUNG (INKL. UMGEBUNG-BEFEHL)
+// ==========================================
 function initSpeechRecognition() {
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
     
@@ -149,27 +155,26 @@ function initSpeechRecognition() {
     recognition.interimResults = false;
 
     recognition.onend = () => {
-        // Nur neu starten, wenn das System nicht komplett abgeschaltet wurde!
         if (shouldListen && !isVoiceSystemDisabled) { 
             try { recognition.start(); } catch(e) {} 
         }
     };
 
     recognition.onresult = (event) => {
-        if (isVoiceSystemDisabled) return; // Tu gar nichts mehr, wenn deaktiviert
+        if (isVoiceSystemDisabled) return;
 
         const command = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
         console.log("Gehört:", command);
         const statusBadge = document.querySelector('.status-dot');
         const statusText = document.getElementById('speech-status');
 
-        // NEU: SPRACHERKENNUNG DEAKTIVIEREN / AUSSCHALTEN
+        // Sprachsteuerung permanent ausschalten
         if (command.includes('ausschalten') || command.includes('deaktivieren')) {
             isVoiceSystemDisabled = true;
             isAppAwake = false;
             clearTimeout(awakeTimeout);
-            statusBadge.style.backgroundColor = "#ef4444"; // Rot für Aus
-            statusText.textContent = "Sprachsteuerung permanent offline.";
+            if(statusBadge) statusBadge.style.backgroundColor = "#ef4444"; 
+            if(statusText) statusText.textContent = "Sprachsteuerung permanent offline.";
             speak("Sprachsteuerung wurde vollständig deaktiviert.");
             return;
         }
@@ -177,13 +182,26 @@ function initSpeechRecognition() {
         // Aufwecken mit "Echo"
         if (command.includes('echo')) {
             isAppAwake = true;
-            statusBadge.style.backgroundColor = "#00f2fe";
-            statusText.textContent = "Zuhören aktiv...";
+            if(statusBadge) statusBadge.style.backgroundColor = "#00f2fe";
+            if(statusText) statusText.textContent = "Zuhören aktiv...";
             speak("Ja? Ich höre.");
             return;
         }
 
         if (isAppAwake) {
+            // NEUER BEFEHL: UMGEBUNG ABFRAGEN
+            if (command.includes('umgebung') || command.includes('hindernisse')) {
+                if (currentNearbyObstacles.length > 0) {
+                    let text = `Es gibt ${currentNearbyObstacles.length} Hindernisse in deiner Nähe. `;
+                    text += currentNearbyObstacles.join(". ");
+                    speak(text);
+                } else {
+                    speak("Es befinden sich keine Hindernisse im Umkreis von 50 Metern.");
+                }
+                return;
+            }
+
+            // KATEGORIEN WÄHLEN
             if (command.includes('baustelle')) {
                 document.getElementById('obstacle-type').value = 'baustelle';
                 speak("Kategorie Baustelle eingestellt.");
@@ -194,6 +212,8 @@ function initSpeechRecognition() {
                 document.getElementById('obstacle-type').value = 'kein-leitsystem';
                 speak("Kategorie Fehlendes Blindenleitsystem eingestellt.");
             } 
+            
+            // BESCHREIBUNG HINZUFÜGEN
             else if (command.includes('beschreibung')) {
                 const textAfterCommand = command.split('beschreibung')[1].trim();
                 if (textAfterCommand) {
@@ -201,6 +221,8 @@ function initSpeechRecognition() {
                     speak(`Beschreibung eingetragen: ${textAfterCommand}`);
                 }
             } 
+            
+            // SPEICHERN
             else if (command.includes('speichern') || command.includes('senden')) {
                 document.getElementById('obstacle-form').dispatchEvent(new Event('submit'));
                 isAppAwake = false;
@@ -215,12 +237,16 @@ function initSpeechRecognition() {
 function putToSleep() {
     if (isVoiceSystemDisabled) return;
     isAppAwake = false;
-    document.querySelector('.status-dot').style.backgroundColor = "#22c55e";
-    document.getElementById('speech-status').textContent = "Warte auf Aktivierungswort...";
+    const statusBadge = document.querySelector('.status-dot');
+    const statusText = document.getElementById('speech-status');
+    if(statusBadge) statusBadge.style.backgroundColor = "#22c55e";
+    if(statusText) statusText.textContent = "Warte auf Aktivierungswort...";
     speak("Ich schlafe wieder.");
 }
 
-// 5. DATEN SENDEN
+// ==========================================
+// 5. DATEN AN FIREBASE SENDEN
+// ==========================================
 document.getElementById('obstacle-form').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -246,7 +272,6 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
         speak("Erfolgreich in der Datenbank gespeichert.");
         document.getElementById('obstacle-form').reset();
         
-        // Wenn ein temporärer Klick-Marker da war, entfernen wir ihn nach dem Speichern
         if (temporaryClickMarker) {
             map.removeLayer(temporaryClickMarker);
             temporaryClickMarker = null;
@@ -260,7 +285,9 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
     });
 });
 
-// 6. DATEN LADEN
+// ==========================================
+// 6. DATEN AUS DATENBANK LADEN
+// ==========================================
 function loadObstacles() {
     fetch(DB_URL)
     .then(res => res.json())
@@ -269,7 +296,10 @@ function loadObstacles() {
         if (listContainer) listContainer.innerHTML = "";
         markerGroup.clearLayers();
         
-        if (!data) return;
+        if (!data) {
+            currentNearbyObstacles = [];
+            return;
+        }
 
         let obstaclesNearby = [];
 
@@ -312,6 +342,10 @@ function loadObstacles() {
             }
         });
 
+        // Die Liste global sichern, damit "Echo, Umgebung!" klappt
+        currentNearbyObstacles = obstaclesNearby;
+
+        // Automatischer Radar beim ersten Laden oder Positionswechsel
         if (obstaclesNearby.length > 0 && !isVoiceSystemDisabled) {
             let warningText = `Achtung, es gibt ${obstaclesNearby.length} Hindernisse im Umkreis von 50 Metern. `;
             warningText += obstaclesNearby.join(". ");
@@ -320,7 +354,9 @@ function loadObstacles() {
     }).catch(e => console.log(e));
 }
 
-// 7. VOTING
+// ==========================================
+// 7. VOTING-SYSTEM
+// ==========================================
 window.castVote = function(id, type) {
     fetch(`${BASE_URL}${id}.json`)
     .then(res => res.json())
