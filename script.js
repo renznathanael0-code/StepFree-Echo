@@ -6,81 +6,105 @@ if (!localStorage.getItem('user_voice_id')) {
 }
 const userId = localStorage.getItem('user_voice_id');
 
-let userLatitude = null;
-let userLongitude = null;
+// Standardkoordinaten (Mitte von Deutschland) als Fallback fürs Testen ohne GPS
+let userLatitude = 51.1657;
+let userLongitude = 10.4515;
+let hasRealGPS = false;
 
-// --- LEAFLET KARTEN-INITIALISIERUNG ---
-// Wir starten mit einer Standard-Ansicht (Deutschland)
-const map = L.map('map').setView([51.1657, 10.4515], 6);
-
+// Karte initialisieren
+const map = L.map('map').setView([userLatitude, userLongitude], 6);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap-Mitwirkende'
+    attribution: '&copy; OpenStreetMap'
 }).addTo(map);
 
 let userMarker = null;
-let markerGroup = L.layerGroup().addTo(map); // Gruppe für alle Hindernis-Marker
+let markerGroup = L.layerGroup().addTo(map);
 
-// 1. GPS Standortermittlung & Zentrierung
+// GPS Standortermittlung
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition((position) => {
         userLatitude = position.coords.latitude;
         userLongitude = position.coords.longitude;
+        hasRealGPS = true;
 
-        // Karte auf den Nutzer zentrieren beim ersten Finden
         if (userMarker === null) {
             map.setView([userLatitude, userLongitude], 16);
-            userMarker = L.circle([userLatitude, userLongitude], {
-                color: 'blue',
-                fillColor: '#30f',
-                fillOpacity: 0.5,
-                radius: 10
-            }).addTo(map).bindPopup("Ihr aktueller Standort");
+            userMarker = L.circle([userLatitude, userLongitude], { color: 'blue', radius: 10 }).addTo(map);
         } else {
             userMarker.setLatLng([userLatitude, userLongitude]);
         }
-    }, (err) => console.log("Warte auf GPS..."), { enableHighAccuracy: true });
+    }, (err) => console.log("GPS wird gesucht oder verweigert. Nutze Kartenmitte."), { enableHighAccuracy: true });
 }
 
-// 2. Sprachausgabe
+// Sprachausgabe (Vorlesen)
 function speak(text) {
     const announcer = document.getElementById('screenreader-announcer');
     if (announcer) announcer.textContent = text;
+    window.speechSynthesis.cancel(); // Stoppt aktuelles Vorlesen, um sofort das Neue zu sagen
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'de-DE';
     window.speechSynthesis.speak(utterance);
 }
 
-// [HINWEIS: Sprachsteuerung (Abschnitt 3) und Formular-Senden (Abschnitt 4) bleiben exakt gleich!]
-const startBtn = document.getElementById('start-speech');
+// --- VERBESSERTE SPRACHSTEUERUNG (AUTO-START & ENDLOS-MODUS) ---
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.lang = 'de-DE';
-    recognition.continuous = true;
+    recognition.continuous = true; // Höre fortlaufend zu
+    recognition.interimResults = false;
 
-    startBtn.addEventListener('click', () => {
+    // AUTOMATISCHER START BEIM LADEN DER SEITE
+    window.addEventListener('DOMContentLoaded', () => {
         recognition.start();
-        document.getElementById('speech-status').textContent = "Sprachsteuerung aktiv.";
-        speak("Sprachsteuerung aktiviert. Du kannst jetzt sprechen.");
+        document.getElementById('speech-status').textContent = "Sprachsteuerung aktiv (Dauerhören).";
+        speak("Willkommen beim Hindernis-Melder. Die Sprachsteuerung ist aktiv. Sage zum Beispiel Baustelle, Beschreibung Loch im Boden, oder Speichern.");
     });
+
+    // WICHTIG: Wenn der Browser das Zeitfenster schließt, startet sich die App sofort selbst neu!
+    recognition.onend = () => {
+        console.log("Erkennung beendet – starte automatisch neu...");
+        recognition.start();
+    };
 
     recognition.onresult = (event) => {
         const command = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+        console.log("Erkannt:", command);
+
+        // 1. Typ-Auswahl
         if (command.includes('baustelle')) {
             document.getElementById('obstacle-type').value = 'baustelle';
-            speak("Baustelle ausgewählt.");
+            speak("Kategorie Baustelle ausgewählt.");
         } else if (command.includes('bordstein') || command.includes('kante')) {
             document.getElementById('obstacle-type').value = 'hohe-kante';
-            speak("Hohe Bordsteinkante ausgewählt.");
-        } else if (command.includes('speichern') || command.includes('senden')) {
+            speak("Kategorie Hohe Bordsteinkante ausgewählt.");
+        } else if (command.includes('leitsystem')) {
+            document.getElementById('obstacle-type').value = 'kein-leitsystem';
+            speak("Kategorie Fehlendes Blindenleitsystem ausgewählt.");
+        } 
+        
+        // NEW: 2. KOMETAR / BESCHREIBUNG PER SPRACHE
+        else if (command.includes('beschreibung')) {
+            // Schneidet das Wort "beschreibung" ab und nimmt den Rest als Text
+            const textAfterCommand = command.split('beschreibung')[1].trim();
+            if (textAfterCommand) {
+                document.getElementById('obstacle-desc').value = textAfterCommand;
+                speak(`Beschreibung festgelegt auf: ${textAfterCommand}`);
+            } else {
+                speak("Bitte nenne eine Beschreibung nach dem Wort Beschreibung.");
+            }
+        } 
+        
+        // 3. Speichern
+        else if (command.includes('speichern') || command.includes('senden')) {
             document.getElementById('submit-btn').click();
         }
     };
 }
 
+// 4. Daten an Firebase senden (POST)
 document.getElementById('obstacle-form').addEventListener('submit', function(e) {
     e.preventDefault();
-    if (!userLatitude) { speak("Warte auf GPS Signal."); return; }
 
     const type = document.getElementById('obstacle-type').value;
     const desc = document.getElementById('obstacle-desc').value;
@@ -94,37 +118,39 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
         votedDown: {}
     };
 
+    if (!hasRealGPS) {
+        console.log("Speichere mit Test-Koordinaten, da kein GPS vorhanden.");
+    }
+
     fetch(DB_URL, {
         method: 'POST',
         body: JSON.stringify(newObstacle)
     })
     .then(() => {
-        speak("Erfolgreich gespeichert.");
-        this.reset();
-        loadObstacles();
+        speak("Erfolgreich in der Datenbank gespeichert.");
+        document.getElementById('obstacle-form').reset();
+        loadObstacles(); 
+    })
+    .catch(err => {
+        speak("Fehler beim Speichern.");
+        console.error(err);
     });
 });
 
-// 5. Daten aus Firebase laden & Marker auf Karte zeichnen (ABGESICHERT)
+// 5. Daten laden & absichern against Crash
 function loadObstacles() {
     fetch(DB_URL)
     .then(res => res.json())
     .then(data => {
         const listContainer = document.getElementById('obstacles-list');
         if (listContainer) listContainer.innerHTML = "";
-        
-        markerGroup.clearLayers(); // Alte Marker von der Karte entfernen
+        markerGroup.clearLayers();
         
         if (!data) return;
 
         Object.keys(data).forEach(id => {
             const item = data[id];
-
-            // SICHERHEITS-CHECK: Hat dieser Eintrag gültige Koordinaten?
-            if (!item || item.latitude === undefined || item.longitude === undefined || isNaN(item.latitude) || isNaN(item.longitude)) {
-                console.warn(`Eintrag ${id} wurde übersprungen, da GPS-Daten fehlen oder ungültig sind.`);
-                return; // Überspringt diesen fehlerhaften Eintrag und macht mit dem nächsten weiter
-            }
+            if (!item || item.latitude === undefined || item.longitude === undefined) return;
 
             const upVotes = item.votedUp ? Object.keys(item.votedUp).length : 0;
             const downVotes = item.votedDown ? Object.keys(item.votedDown).length : 0;
@@ -134,35 +160,26 @@ function loadObstacles() {
                 'hohe-kante': 'Hohe Bordsteinkante',
                 'kein-leitsystem': 'Fehlendes Blindenleitsystem'
             };
-            const NameReingeschrieben = typeNames[item.type] || item.type || 'Unbekanntes Hindernis';
+            const NameReingeschrieben = typeNames[item.type] || 'Hindernis';
 
-            // --- BARRIEREFREIER LEAFLET MARKER ---
             const marker = L.marker([item.latitude, item.longitude], {
                 keyboard: true,
-                title: `${NameReingeschrieben}: ${item.description || ''}. Stimmen dafür: ${upVotes}`,
-                alt: `${NameReingeschrieben}: ${item.description || ''}`
+                title: `${NameReingeschrieben}. ${item.description || ''}. Stimmen dafür: ${upVotes}`
             });
-
-            const popupText = `
-                <b>${NameReingeschrieben}</b><br>${item.description || 'Keine Beschreibung'}<br>
-                Empfohlen: ${upVotes} | Nicht da: ${downVotes}
-            `;
-            marker.bindPopup(popupText);
+            marker.bindPopup(`<b>${NameReingeschrieben}</b><br>${item.description || ''}`);
             markerGroup.addLayer(marker);
 
-            // Eintrag für die Textliste unter der Karte
             if (listContainer) {
                 const li = document.createElement('li');
                 li.innerHTML = `
-                    <p><strong>${NameReingeschrieben}</strong>: ${item.description || 'Keine Beschreibung'}</p>
-                    <button onclick="castVote('${id}', 'up')" aria-label="${NameReingeschrieben} bestätigen. Aktuell ${upVotes}">Stimmt (${upVotes})</button>
-                    <button onclick="castVote('${id}', 'down')" aria-label="${NameReingeschrieben} ablehnen. Aktuell ${downVotes}">Stimmt nicht (${downVotes})</button>
+                    <p><strong>${NameReingeschrieben}</strong>: ${item.description || ''}</p>
+                    <button onclick="castVote('${id}', 'up')" aria-label="Stimmt (${upVotes})">Stimmt (${upVotes})</button>
+                    <button onclick="castVote('${id}', 'down')" aria-label="Stimmt nicht (${downVotes})">Stimmt nicht (${downVotes})</button>
                 `;
                 listContainer.appendChild(li);
             }
         });
-    })
-    .catch(err => console.error("Fehler beim Laden der Daten:", err));
+    });
 }
 
 // 6. Abstimmen
@@ -187,5 +204,4 @@ window.castVote = function(id, type) {
     });
 };
 
-// Beim Start laden
 loadObstacles();
