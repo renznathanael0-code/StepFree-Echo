@@ -13,8 +13,8 @@ let awakeTimeout = null;
 let recognition = null;
 let shouldListen = true;
 let isVoiceSystemDisabled = false; 
-let currentNearbyObstacles = [];   
-let lastFetchedData = null; // NEU: Hier merken wir uns die geladenen Hindernisse
+let currentNearbyObstacles = [];   // Speichert die IDs der aktuellen Hindernisse für das Sprach-Voting
+let lastFetchedData = null; 
 
 // ==========================================
 // 1. KARTEN-INITIALISIERUNG & STANDORT
@@ -28,7 +28,6 @@ let markerGroup = L.layerGroup().addTo(map);
 let userMarker = null;
 let temporaryClickMarker = null; 
 
-// GPS Standortermittlung (DYNAMISCHE NEUBERECHNUNG BEI GEH-BEWEGUNG)
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition((position) => {
         userLatitude = position.coords.latitude;
@@ -41,14 +40,12 @@ if (navigator.geolocation) {
             userMarker.setLatLng([userLatitude, userLongitude]);
         }
 
-        // FIX: Sobald das echte GPS da ist oder sich verändert, berechnen wir die Entfernungen sofort neu!
         if (lastFetchedData) {
-            renderObstacles(lastFetchedData, false); // false = kein nerviges automatisches Reden bei jedem GPS-Zucken
+            renderObstacles(lastFetchedData, false); 
         }
     }, (err) => console.log("GPS verzögert..."), { enableHighAccuracy: true });
 }
 
-// Klick-Funktion auf der Karte für Angehörige / Sehende
 map.on('click', function(e) {
     userLatitude = e.latlng.lat;
     userLongitude = e.latlng.lng;
@@ -72,11 +69,10 @@ map.on('click', function(e) {
     speak("Ort auf der Karte markiert. Bitte wähle die Art des Hindernisses.");
 });
 
-// Hilfsfunktion: Leaflet-eigene, hochpräzise Distanzberechnung
 function getDistanceInMeters(lat1, lon1, lat2, lon2) {
     const point1 = L.latLng(lat1, lon1);
     const point2 = L.latLng(lat2, lon2);
-    return point1.distanceTo(point2); // Berechnet die exakte Distanz in Metern auf der Erdkugel
+    return point1.distanceTo(point2);
 }
 
 // ==========================================
@@ -87,7 +83,6 @@ function speak(text, callback) {
     if (announcer) announcer.textContent = text;
 
     clearTimeout(awakeTimeout);
-
     shouldListen = false;
     if (recognition) { try { recognition.stop(); } catch(e) {} }
 
@@ -97,16 +92,13 @@ function speak(text, callback) {
     
     utterance.onend = () => {
         shouldListen = true;
-        
         if (recognition && !isVoiceSystemDisabled) { 
             try { recognition.start(); } catch(e) {} 
         }
-
         if (isAppAwake && !isVoiceSystemDisabled) {
             clearTimeout(awakeTimeout);
             awakeTimeout = setTimeout(putToSleep, 15000);
         }
-
         if (callback) callback();
     };
     window.speechSynthesis.speak(utterance);
@@ -130,7 +122,6 @@ function startApp() {
     if (splash.classList.contains('hidden')) return;
     splash.classList.add('hidden');
     appContent.classList.remove('hidden');
-    
     setTimeout(() => { map.invalidateSize(); }, 200);
 
     speak("App gestartet. Ich höre ab jetzt im Hintergrund zu. Rufe mich mit dem Namen Echo.", () => {
@@ -139,7 +130,7 @@ function startApp() {
 }
 
 // ==========================================
-// 4. SPRACHSTEUERUNG
+// 4. SPRACHSTEUERUNG & INTERAKTION
 // ==========================================
 function initSpeechRecognition() {
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
@@ -183,10 +174,13 @@ function initSpeechRecognition() {
         }
 
         if (isAppAwake) {
+            // BEFEHL: Hindernisse in der Umgebung abfragen
             if (command.includes('umgebung') || command.includes('hindernisse')) {
                 if (currentNearbyObstacles.length > 0) {
                     let text = `Es gibt ${currentNearbyObstacles.length} Hindernisse in deiner Nähe. `;
-                    text += currentNearbyObstacles.join(". ");
+                    currentNearbyObstacles.forEach((obs, index) => {
+                        text += `Nummer ${index + 1}: ${obs.text}. `;
+                    });
                     speak(text);
                 } else {
                     speak("Es befinden sich keine Hindernisse im Umkreis von 50 Metern.");
@@ -194,6 +188,40 @@ function initSpeechRecognition() {
                 return;
             }
 
+            // NEU: SPRACH-VOTING SYSTEM (z.B. "Nummer 1 stimmt" oder "Nummer 2 ablehnen")
+            if (command.includes('nummer') || command.includes('hindernis nummer')) {
+                // Extrahiere die Zahl aus dem Text (unterstützt Zahlenwörter von 1 bis 5 und Ziffern)
+                const numberMap = { 'eins': 1, '1': 1, 'zwei': 2, '2': 2, 'drei': 3, '3': 3, 'vier': 4, '4': 4, 'fünf': 5, '5': 5 };
+                let targetIndex = null;
+
+                Object.keys(numberMap).forEach(key => {
+                    if (command.includes(key)) {
+                        targetIndex = numberMap[key] - 1; // Array-Index startet bei 0
+                    }
+                });
+
+                if (targetIndex !== null && currentNearbyObstacles[targetIndex]) {
+                    const obstacleId = currentNearbyObstacles[targetIndex].id;
+                    
+                    if (command.includes('stimmt') || command.includes('bestätigen') || command.includes('ja')) {
+                        window.castVote(obstacleId, 'up');
+                    } else if (command.includes('nicht') || command.includes('ablehnen') || command.includes('falsch') || command.includes('nein')) {
+                        window.castVote(obstacleId, 'down');
+                    } else {
+                        speak("Möchtest du das Hindernis bestätigen oder ablehnen?");
+                    }
+                    
+                    // Nach dem Vote legen wir das System wieder schlafen
+                    isAppAwake = false;
+                    clearTimeout(awakeTimeout);
+                    return;
+                } else {
+                    speak("Diese Nummer habe ich in deiner Liste nicht gefunden.");
+                    return;
+                }
+            }
+
+            // BEFEHLE: Formularsteuerung
             if (command.includes('baustelle')) {
                 document.getElementById('obstacle-type').value = 'baustelle';
                 speak("Kategorie Baustelle eingestellt.");
@@ -204,7 +232,6 @@ function initSpeechRecognition() {
                 document.getElementById('obstacle-type').value = 'kein-leitsystem';
                 speak("Kategorie Fehlendes Blindenleitsystem eingestellt.");
             } 
-            
             else if (command.includes('beschreibung')) {
                 const textAfterCommand = command.split('beschreibung')[1].trim();
                 if (textAfterCommand) {
@@ -212,7 +239,6 @@ function initSpeechRecognition() {
                     speak(`Beschreibung eingetragen: ${textAfterCommand}`);
                 }
             } 
-            
             else if (command.includes('speichern') || command.includes('senden')) {
                 document.getElementById('obstacle-form').dispatchEvent(new Event('submit'));
                 isAppAwake = false;
@@ -239,7 +265,6 @@ function putToSleep() {
 // ==========================================
 document.getElementById('obstacle-form').addEventListener('submit', function(e) {
     e.preventDefault();
-
     const type = document.getElementById('obstacle-type').value;
     const desc = document.getElementById('obstacle-desc').value;
 
@@ -261,12 +286,10 @@ document.getElementById('obstacle-form').addEventListener('submit', function(e) 
     .then(() => {
         speak("Erfolgreich in der Datenbank gespeichert.");
         document.getElementById('obstacle-form').reset();
-        
         if (temporaryClickMarker) {
             map.removeLayer(temporaryClickMarker);
             temporaryClickMarker = null;
         }
-
         loadObstacles(); 
     })
     .catch(err => {
@@ -282,12 +305,11 @@ function loadObstacles() {
     fetch(DB_URL)
     .then(res => res.json())
     .then(data => {
-        lastFetchedData = data; // Daten global merken
-        renderObstacles(data, true); // true = beim allerersten Laden darf die App sprechen
+        lastFetchedData = data; 
+        renderObstacles(data, true); 
     }).catch(e => console.log(e));
 }
 
-// Verarbeitet die Daten visuell auf der Liste und Karte
 function renderObstacles(data, triggerVoiceWarning) {
     const listContainer = document.getElementById('obstacles-list');
     if (listContainer) listContainer.innerHTML = "";
@@ -304,7 +326,6 @@ function renderObstacles(data, triggerVoiceWarning) {
         const item = data[id];
         if (!item || item.latitude === undefined || item.longitude === undefined) return;
 
-        // Nutzt jetzt die korrekte, dynamische Distanz
         const distance = Math.round(getDistanceInMeters(userLatitude, userLongitude, item.latitude, item.longitude));
         const upVotes = item.votedUp ? Object.keys(item.votedUp).length : 0;
         const downVotes = item.votedDown ? Object.keys(item.votedDown).length : 0;
@@ -316,8 +337,12 @@ function renderObstacles(data, triggerVoiceWarning) {
         };
         const NameReingeschrieben = typeNames[item.type] || 'Hindernis';
 
+        // Strukturiertes Objekt für das Sprach-Voting speichern
         if (distance <= 50) {
-            obstaclesNearby.push(`${NameReingeschrieben} in ${distance} Metern Entfernung. ${item.description || ''}`);
+            obstaclesNearby.push({
+                id: id,
+                text: `${NameReingeschrieben} in ${distance} Metern Entfernung. ${item.description || ''}`
+            });
         }
 
         const marker = L.marker([item.latitude, item.longitude], { 
@@ -342,10 +367,11 @@ function renderObstacles(data, triggerVoiceWarning) {
 
     currentNearbyObstacles = obstaclesNearby;
 
-    // Nur sprechen, wenn explizit erwünscht (z.B. nicht sekündlich bei GPS-Updates)
     if (triggerVoiceWarning && obstaclesNearby.length > 0 && !isVoiceSystemDisabled) {
         let warningText = `Achtung, es gibt ${obstaclesNearby.length} Hindernisse im Umkreis von 50 Metern. `;
-        warningText += obstaclesNearby.join(". ");
+        obstaclesNearby.forEach((obs, index) => {
+            warningText += `Nummer ${index + 1}: ${obs.text}. `;
+        });
         speak(warningText);
     }
 }
@@ -357,15 +383,16 @@ window.castVote = function(id, type) {
     fetch(`${BASE_URL}${id}.json`)
     .then(res => res.json())
     .then(item => {
+        if (!item) return;
         let votedUp = item.votedUp || {};
         let votedDown = item.votedDown || {};
 
         if (type === 'up') {
             if (votedUp[userId]) { delete votedUp[userId]; speak("Stimme zurückgezogen."); }
-            else { votedUp[userId] = true; delete votedDown[userId]; speak("Bestätigt."); }
+            else { votedUp[userId] = true; delete votedDown[userId]; speak("Als existent bestätigt."); }
         } else {
             if (votedDown[userId]) { delete votedDown[userId]; speak("Stimme zurückgezogen."); }
-            else { votedDown[userId] = true; delete votedUp[userId]; speak("Abgelehnt."); }
+            else { votedDown[userId] = true; delete votedUp[userId]; speak("Als nicht existent markiert."); }
         }
 
         fetch(`${BASE_URL}${id}/votedUp.json`, { method: 'PUT', body: JSON.stringify(votedUp) });
