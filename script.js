@@ -124,8 +124,13 @@ function startApp() {
     appContent.classList.remove('hidden');
     setTimeout(() => { map.invalidateSize(); }, 200);
 
+    // Erst begrüßen, dann mit Verzögerung die Datenbank abfragen
     speak("App gestartet. Rufe mich mit dem Namen Echo.", () => {
         initSpeechRecognition();
+        // Warte 1,5 Sekunden nach der Begrüßung, bevor der erste Geo-Check läuft
+        setTimeout(() => {
+            loadObstacles(true);
+        }, 1500);
     });
 }
 
@@ -283,23 +288,32 @@ function initSpeechRecognition() {
                 return;
             }
 
-            // NEU: SCHRITT 4 — AUTOMATISCHE ABFRAGE VOR ORT (20m Radius vom Admin initiiert)
-            if (formStep === 4 && activeCheckObstacleId) {
-                if (command.includes('ja') || command.includes('stimmt') || command.includes('bestätigen') || command === 'existiert') {
-                    window.castVote(activeCheckObstacleId, 'up');
-                    resetGuidedForm();
-                    speak("Vielen Dank für deine Hilfe. Ich habe eingecheckt und den Punkt für das System bestätigt.");
-                    putToSleep();
-                } else if (command.includes('nein') || command.includes('falsch') || command.includes('nicht') || command === 'frei') {
-                    window.castVote(activeCheckObstacleId, 'down');
-                    resetGuidedForm();
-                    speak("Alles klar, danke. Ich habe registriert, dass der Weg hier frei ist.");
-                    putToSleep();
-                } else {
-                    speak("Ich brauche deine Bestätigung vor Ort. Antworte bitte einfach mit Ja oder Nein.");
-                }
+        // FIX: Priorisierte Abfrage für den Vor-Ort-Check (formStep 4)
+        if (formStep === 4 && activeCheckObstacleId) {
+            console.log("Check-In Modus aktiv. Verarbeite Antwort:", command);
+            
+            // Positives Signal (Hindernis existiert noch)
+            if (command.includes('ja') || command.includes('stimmt') || command.includes('bestätigen') || command.includes('existiert') || command === 'jo' || command === 'jep') {
+                const targetId = activeCheckObstacleId; // ID sichern
+                resetGuidedForm(); // Formular-Zustand sofort säubern
+                window.castVote(targetId, 'up'); // Vote absenden (spielt eigene Ansage)
+                putToSleep();
+                return;
+            } 
+            // Negatives Signal (Hindernis ist weg / Weg ist frei)
+            else if (command.includes('nein') || command.includes('falsch') || command.includes('nicht') || command.includes('frei') || command === 'nee' || command === 'nicht mehr') {
+                const targetId = activeCheckObstacleId; // ID sichern
+                resetGuidedForm(); // Formular-Zustand sofort säubern
+                window.castVote(targetId, 'down'); // Vote absenden (spielt eigene Ansage)
+                putToSleep();
+                return;
+            } 
+            // Unklare Antwort
+            else {
+                speak("Ich habe dich nicht verstanden. Bitte antworte mit Ja, wenn das Hindernis noch da ist, oder mit Nein, wenn der Weg frei ist.");
                 return;
             }
+        }
 
             // NORMALE BEFEHLE
             if (formStep === 0) {
