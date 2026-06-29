@@ -110,16 +110,15 @@ function initSpeech() {
                   "Dadurch wird sofort ein Alarm beim Admin ausgelöst, damit der Punkt überprüft wird. " +
                   "Möchtest du noch ein Kapitel hören? Nenne 'Kategorien', 'Check in' oder sage 'Zurück'.");
         } 
-        else if (command.includes('check in') || command.includes('prüfung') || command.includes('vor ort')) {
-            speak("Der automatische Check-in ist unsere wichtigste Sicherheitsfunktion. " +
-                  "Wenn der Admin einen Punkt überprüfen möchte, schaltet er den Vor-Ort-Check ein. " +
-                  "Sobald sich ein Nutzer diesem Punkt auf unter zwanzig Meter nähert, wacht die App durch das GPS vollautomatisch auf. " +
-                  "Echo fragt dich dann direkt, ob das Hindernis noch existiert. " +
-                  "Du musst nur mit Ja oder Nein antworten, um den Weg für alle anderen zu verifizieren. " +
-                  "Möchtest du noch ein Kapitel hören? Nenne 'Kategorien', 'Bewertung' oder sage 'Zurück'.");
-        } else {
-            speak("Ich habe das Kapitel nicht verstanden. Bitte sage 'Kategorien', 'Bewertung', 'Check in' oder 'Zurück'.");
-        }
+        // FLEXIBLE ABFRAGE FÜR CHECK-IN (Ersetzt den alten "check in" Block)
+else if (command.includes('check') || command.includes('tscheck') || command.includes('einchecken') || command.includes('prüfung') || command.includes('vor ort')) {
+    speak("Der automatische Check-in ist unsere wichtigste Sicherheitsfunktion. " +
+          "Wenn der Admin einen Punkt überprüfen möchte, schaltet er den Vor-Ort-Check ein. " +
+          "Sobald sich ein Nutzer diesem Punkt auf unter zwanzig Meter nähert, wacht die App durch das GPS vollautomatisch auf. " +
+          "Echo fragt dich dann direkt, ob das Hindernis noch existiert. " +
+          "Du musst nur mit Ja oder Nein antworten, um den Weg für alle anderen zu verifizieren. " +
+          "Möchtest du noch ein Kapitel hören? Nenne 'Kategorien', 'Bewertung' oder sage 'Zurück'.");
+}
     };
 
     try { recognition.start(); } catch(e) {}
